@@ -6,7 +6,11 @@ import { unByKey } from 'ol/Observable'
 import ScaleLine from 'ol/control/ScaleLine'
 import { CRS, LayerWMTS, LayerSwitcher, MousePosition } from 'geopf-extensions-openlayers'
 
-const defaultControlTypes = { LayerSwitcher, Scale: ScaleLine, MousePosition }
+const defaultControlTypes = {
+  // LayerSwitcher,
+  Scale: ScaleLine,
+  // MousePosition
+}
 
 export function createMap2D({ layers, controls, view, controlTypes = {}, mapOptions = {} }) {
   const registry = { ...defaultControlTypes, ...controlTypes }

@@ -10,7 +10,11 @@ import {
   MousePosition,
 } from 'geopf-extensions-itowns'
 
-const defaultControlTypes = { LayerSwitcher, Scale, MousePosition }
+const defaultControlTypes = {
+  // LayerSwitcher,
+  Scale,
+  // MousePosition
+}
 
 export function createMap3D({
   layers,
@@ -22,7 +26,7 @@ export function createMap3D({
   attribution = [{ name: 'IGN', url: 'https://www.ign.fr/' }],
 }) {
   const registry = { ...defaultControlTypes, ...controlTypes }
-  let disposeCurrent = () => {}
+  let disposeCurrent = () => { }
 
   async function load(target) {
     dispose()
@@ -95,8 +99,8 @@ export function createMap3D({
             const { longitude, latitude } = view.coordinates
             const center = getCoordinates()
             if (Math.abs(center.longitude - longitude) <= 1e-7 &&
-                Math.abs(center.latitude - latitude) <= 1e-7 &&
-                Math.abs(globe.getZoom() - view.zoom) <= 1e-6) {
+              Math.abs(center.latitude - latitude) <= 1e-7 &&
+              Math.abs(globe.getZoom() - view.zoom) <= 1e-6) {
               continue
             }
             await globeView.controls.lookAtCoordinate({
@@ -213,7 +217,7 @@ export function createMap3D({
 
   function dispose() {
     disposeCurrent()
-    disposeCurrent = () => {}
+    disposeCurrent = () => { }
   }
 
   return { load, dispose }
