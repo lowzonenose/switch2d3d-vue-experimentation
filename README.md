@@ -1,74 +1,118 @@
 # switch2d3d-vue-experimentation
 
-This template should help get you started developing with Vue 3 in Vite.
+Ce modèle vous aide à démarrer le développement avec Vue 3 et Vite.
 
-## Reusable Map Module
+## Module cartographique réutilisable
 
-The [map module](src/maps/README.md) exposes instance-based 2D/3D controllers,
-configurable reactive state and catalog loading without Pinia or application
-aliases. Its documentation includes an integration example for another Vue project.
+Le [module cartographique](src/maps/README.md) fournit des contrôleurs 2D/3D
+propres à chaque instance, un état réactif configurable et le chargement du catalogue,
+sans dépendre de Pinia ni des alias de l'application. Sa documentation inclut un
+exemple d'intégration dans un autre projet Vue.
 
-## Recommended IDE Setup
+### Composants cartographiques Vue
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+[Map2D](src/components/Map2D.vue) et [Map3D](src/components/Map3D.vue) encapsulent
+l'élément cible de chaque carte et le cycle de vie de son contrôleur. Transmettez
+les options du contrôleur (`layers`, `controls`, `view` et les paramètres facultatifs
+du moteur) via la prop obligatoire `options`. Les options sont lues à la création
+du composant ; les objets d'état restent réactifs.
 
-## Recommended Browser Setup
+Une fois la configuration prête, appelez la méthode exposée `load()` via une
+référence de template. Elle renvoie la promesse de chargement du contrôleur et
+propage les erreurs à l'appelant. Chaque composant libère automatiquement les
+ressources de son contrôleur avant son démontage.
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
+[TheExperimentation](src/components/TheExperimentation.vue) coordonne la configuration
+et le chargement séquentiel (2D puis 3D), et gère la mise en page, les transitions
+et la visibilité. Les deux composants cartographiques restent montés lors du
+changement de vue.
+
+## Bouton de bascule 2D/3D réutilisable
+
+[ButtonToggle2D3D](src/components/ButtonToggle2D3D.vue) est un composant Vue autonome,
+sans dépendance aux cartes ni aux stores. Liez un booléen avec `v-model` (`false`
+pour la 2D, `true` pour la 3D ; la valeur par défaut est `false`). Le parent reste
+responsable de l'affichage de la carte sélectionnée. Le composant inclut ses styles
+et la sémantique d'accessibilité d'un interrupteur.
+
+```vue
+<script setup>
+import { ref } from 'vue'
+import ButtonToggle2D3D from './src/components/ButtonToggle2D3D.vue'
+
+const is3D = ref(false)
+</script>
+
+<template>
+  <ButtonToggle2D3D v-model="is3D" aria-controls="map2d map3d" />
+</template>
+```
+
+Renseignez `aria-controls` avec les identifiants des cartes contrôlées par cette
+instance. Les attributs natifs du bouton, tels que `disabled` et un `aria-label`
+personnalisé, sont également pris en charge.
+
+## Configuration recommandée de l'IDE
+
+[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (désactivez Vetur).
+
+## Configuration recommandée du navigateur
+
+- Navigateurs basés sur Chromium (Chrome, Edge, Brave, etc.) :
   - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
+  - [Activer le formatage personnalisé des objets dans Chrome DevTools](http://bit.ly/object-formatters)
+- Firefox :
   - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+  - [Activer le formatage personnalisé des objets dans les outils de développement Firefox](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
 
-## Customize configuration
+## Personnalisation de la configuration
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+Consultez la [référence de configuration de Vite](https://vite.dev/config/).
 
-## Project Setup
+## Installation du projet
 
 ```sh
 npm install
 ```
 
-### Compile and Hot-Reload for Development
+### Compilation et rechargement à chaud pour le développement
 
 ```sh
 npm run dev
 ```
 
-### Compile and Minify for Production
+### Compilation et minification pour la production
 
 ```sh
 npm run build
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+### Exécution des tests unitaires avec [Vitest](https://vitest.dev/)
 
 ```sh
 npm run test:unit
 ```
 
-### Run End-to-End Tests with [Playwright](https://playwright.dev)
+### Exécution des tests de bout en bout avec [Playwright](https://playwright.dev)
 
 ```sh
-# Install browsers for the first run
+# Installer les navigateurs avant la première exécution
 npx playwright install
 
-# When testing on CI, must build the project first
+# En intégration continue, compiler le projet avant les tests
 npm run build
 
-# Runs the end-to-end tests
+# Exécuter les tests de bout en bout
 npm run test:e2e
-# Runs the tests only on Chromium
+# Exécuter les tests uniquement sur Chromium
 npm run test:e2e -- --project=chromium
-# Runs the tests of a specific file
+# Exécuter les tests d'un fichier précis
 npm run test:e2e -- tests/example.spec.ts
-# Runs the tests in debug mode
+# Exécuter les tests en mode débogage
 npm run test:e2e -- --debug
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+### Analyse du code avec [ESLint](https://eslint.org/)
 
 ```sh
 npm run lint

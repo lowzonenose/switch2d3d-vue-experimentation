@@ -25,6 +25,7 @@ describe('TheExperimentation', () => {
         const map3d = wrapper.get('#map3d')
 
         expect(toggle.attributes('aria-checked')).toBe('false')
+        expect(toggle.attributes('aria-controls')).toBe('map2d map3d')
         expect(map2d.classes()).not.toContain('map-hidden')
         expect(map3d.classes()).toContain('map-hidden')
         expect(map3d.attributes('inert')).toBeDefined()
@@ -70,5 +71,46 @@ describe('TheExperimentation', () => {
         expect(createMap3D.mock.results[0].value.load).not.toHaveBeenCalled()
         expect(createMap2D.mock.results[0].value.dispose).toHaveBeenCalledTimes(1)
         expect(createMap3D.mock.results[0].value.dispose).toHaveBeenCalledTimes(1)
+    })
+
+    it('loads 3D only after 2D has finished loading', async () => {
+        let finish2D
+        createMap2D.mockImplementationOnce(() => ({
+            load: vi.fn(() => new Promise((resolve) => { finish2D = resolve })),
+            dispose: vi.fn(),
+        }))
+        const wrapper = mount(TheExperimentation, {
+            global: { plugins: [createPinia()] },
+        })
+        await flushPromises()
+
+        const controller3D = createMap3D.mock.results[0].value
+        expect(controller3D.load).not.toHaveBeenCalled()
+
+        finish2D()
+        await flushPromises()
+
+        expect(controller3D.load).toHaveBeenCalledExactlyOnceWith(wrapper.get('#map3d').element)
+        wrapper.unmount()
+    })
+
+    it('does not load 3D when unmounted while 2D is loading', async () => {
+        let finish2D
+        createMap2D.mockImplementationOnce(() => ({
+            load: vi.fn(() => new Promise((resolve) => { finish2D = resolve })),
+            dispose: vi.fn(),
+        }))
+        const wrapper = mount(TheExperimentation, {
+            global: { plugins: [createPinia()] },
+        })
+        await flushPromises()
+
+        wrapper.unmount()
+        finish2D()
+        await flushPromises()
+
+        expect(createMap2D.mock.results[0].value.dispose).toHaveBeenCalledTimes(1)
+        expect(createMap3D.mock.results[0].value.dispose).toHaveBeenCalledTimes(1)
+        expect(createMap3D.mock.results[0].value.load).not.toHaveBeenCalled()
     })
 })
