@@ -1,6 +1,6 @@
 <script setup>
 import { onBeforeUnmount, ref } from 'vue'
-import { createMap3D } from '../maps'
+import { createMap3D } from '../maps/createMap3D.js'
 
 const props = defineProps({
   options: { type: Object, required: true },

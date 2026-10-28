@@ -120,7 +120,7 @@ describe('shared map parameters', () => {
             const secondMap = await second2D.load(document.createElement('div'))
             const secondGlobe = await second3D.load(document.createElement('div'))
             firstState.view.setView({ longitude: 5.4, latitude: 43.3 }, 12)
-            await vi.waitFor(() => expect(firstGlobe.getZoom()).toBe(12))
+            await vi.waitFor(() => expect(firstGlobe.getZoom()).toBe(11))
             expect(firstMap.getView().getCenter()).toEqual(fromLonLat([5.4, 43.3]))
             expect(secondMap.getView().getZoom()).toBe(8)
             expect(secondGlobe.getCenter()).toEqual({ lon: 4.8, lat: 45.7 })
@@ -128,9 +128,9 @@ describe('shared map parameters', () => {
             first3D.dispose()
             firstState.view.zoom = 9
             secondState.view.zoom = 13
-            await vi.waitFor(() => expect(secondGlobe.getZoom()).toBe(13))
+            await vi.waitFor(() => expect(secondGlobe.getZoom()).toBe(12))
             expect(firstMap.getView().getZoom()).toBe(12)
-            expect(firstGlobe.getZoom()).toBe(12)
+            expect(firstGlobe.getZoom()).toBe(11)
             expect(secondMap.getView().getZoom()).toBe(13)
         } finally {
             first2D.dispose()
@@ -150,7 +150,7 @@ describe('shared map parameters', () => {
             await expect(cancelled).resolves.toBeUndefined()
             const globe = await loading
             state.view.zoom = 12
-            await vi.waitFor(() => expect(globe.getZoom()).toBe(12))
+            await vi.waitFor(() => expect(globe.getZoom()).toBe(11))
         } finally {
             controller.dispose()
         }
@@ -191,17 +191,17 @@ describe('shared map parameters', () => {
         const map = await useLoad2D(document.createElement('div'), { layers2D: [] }, { controls2D: [] }, store)
         const globe = await useLoad3D(document.createElement('div'), { layers3D: [] }, { controls3D: [] }, store)
         expect(globe.getCenter().lon).toBe(store.coordinates.longitude)
-        expect(globe.getZoom()).toBe(store.zoom)
+        expect(globe.getZoom()).toBe(store.zoom - 1)
 
         store.coordinates = { longitude: 4.8, latitude: 45.7 }
         store.zoom = 0
         await nextTick()
-        await vi.waitFor(() => expect(globe.getZoom()).toBeCloseTo(0))
+        await vi.waitFor(() => expect(globe.getZoom()).toBeCloseTo(-1))
         expect(globe.getCenter().lon).toBe(4.8)
         expect(map.getView().getZoom()).toBe(0)
 
         globe.center = { longitude: 5.4, latitude: 43.3 }
-        globe.zoom = 11
+        globe.zoom = 10
         globe.emit('center')
         await nextTick()
         expect(store.coordinates).toEqual({ longitude: 5.4, latitude: 43.3 })
@@ -211,14 +211,14 @@ describe('shared map parameters', () => {
         map.getView().setZoom(12)
         map.dispatchEvent('moveend')
         await nextTick()
-        await vi.waitFor(() => expect(globe.getZoom()).toBe(12))
+        await vi.waitFor(() => expect(globe.getZoom()).toBe(11))
         expect(globe.getGlobeView().controls.lookAtCoordinate).toHaveBeenCalledTimes(2)
 
         useDispose3D()
         store.zoom = 8
         await nextTick()
-        expect(globe.getZoom()).toBe(12)
-        globe.zoom = 7
+        expect(globe.getZoom()).toBe(11)
+        globe.zoom = 6
         globe.emit('range')
         expect(store.zoom).toBe(8)
     })
@@ -228,7 +228,7 @@ describe('shared map parameters', () => {
         const loading = useLoad3D(document.createElement('div'), { layers3D: [] }, { controls3D: [] }, store)
         store.setView({ longitude: 4.8, latitude: 45.7 }, 12)
         const globe = await loading
-        await vi.waitFor(() => expect(globe.getZoom()).toBe(12))
+        await vi.waitFor(() => expect(globe.getZoom()).toBe(11))
         expect(globe.getCenter()).toEqual({ lon: 4.8, lat: 45.7 })
 
         const controls = globe.getGlobeView().controls
@@ -243,9 +243,72 @@ describe('shared map parameters', () => {
         store.setView({ longitude: 5.4, latitude: 43.3 }, 9)
         await nextTick()
         completeUpdate()
-        await vi.waitFor(() => expect(globe.getZoom()).toBe(9))
+        await vi.waitFor(() => expect(globe.getZoom()).toBe(8))
         expect(globe.getCenter()).toEqual({ lon: 5.4, lat: 43.3 })
         expect(store.zoom).toBe(9)
         expect(store.coordinates).toEqual({ longitude: 5.4, latitude: 43.3 })
+    })
+
+    it('only publishes navigation from the active engine while keeping hidden views synchronized', async () => {
+        const state = createMapState({ layerIds: [], controlIds: [], elevationLayerId: null })
+        let is3D = false
+        const controller2D = createMap2D({ ...state, isActive: () => !is3D })
+        const controller3D = createMap3D({ ...state, isActive: () => is3D })
+        const publish = vi.spyOn(state.view, 'setView')
+        try {
+            const map = await controller2D.load(document.createElement('div'))
+            const globe = await controller3D.load(document.createElement('div'))
+            const mapView = map.getView()
+            const initialView = { ...state.view.coordinates }
+            const initialZoom = state.view.zoom
+            globe.center = { longitude: 8, latitude: 44 }
+            globe.zoom = 6
+            globe.emit('center')
+            globe.emit('range')
+            expect(publish).not.toHaveBeenCalled()
+            expect(state.view.coordinates).toEqual(initialView)
+            expect(state.view.zoom).toBe(initialZoom)
+
+            mapView.setCenter(fromLonLat([4.8, 45.7]))
+            mapView.setZoom(12)
+            map.dispatchEvent('moveend')
+            await vi.waitFor(() => expect(globe.getZoom()).toBe(11))
+            expect(globe.getCenter().lon).toBeCloseTo(4.8)
+            expect(globe.getCenter().lat).toBeCloseTo(45.7)
+            expect(publish).toHaveBeenCalledTimes(1)
+
+            is3D = true
+            publish.mockClear()
+            mapView.setCenter(fromLonLat([0, 0]))
+            mapView.setZoom(3)
+            map.dispatchEvent('moveend')
+            expect(publish).not.toHaveBeenCalled()
+            expect(state.view.zoom).toBe(12)
+
+            globe.center = { longitude: 5.4, latitude: 43.3 }
+            globe.zoom = 9
+            globe.emit('range')
+            await nextTick()
+            expect(state.view.coordinates).toEqual({ longitude: 5.4, latitude: 43.3 })
+            expect(state.view.zoom).toBe(10)
+            expect(mapView.getCenter()).toEqual(fromLonLat([5.4, 43.3]))
+            expect(mapView.getZoom()).toBe(10)
+            expect(publish).toHaveBeenCalledTimes(1)
+
+            is3D = false
+            publish.mockClear()
+            globe.zoom = 2
+            globe.emit('range')
+            expect(publish).not.toHaveBeenCalled()
+            mapView.setZoom(11)
+            map.dispatchEvent('moveend')
+            await vi.waitFor(() => expect(globe.getZoom()).toBe(10))
+            expect(state.view.zoom).toBe(11)
+            expect(publish).toHaveBeenCalledTimes(1)
+        } finally {
+            controller2D.dispose()
+            controller3D.dispose()
+            publish.mockRestore()
+        }
     })
 })

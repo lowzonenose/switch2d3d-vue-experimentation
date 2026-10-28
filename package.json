@@ -16,8 +16,8 @@
   },
   "dependencies": {
     "buffer": "^6.0.3",
-    "geopf-extensions-openlayers": "./modules/geopf-extensions-openlayers-1.0.0-beta.16-606.tgz",
-    "geopf-extensions-itowns": "./modules/geopf-extensions-itowns-1.0.0-beta.tgz",
+    "geopf-extensions-openlayers": "./modules/geopf-extensions-openlayers-1.0.0-beta.16-608.tgz",
+    "geopf-extensions-itowns": "./modules/geopf-extensions-itowns-1.0.0-beta.1.tgz",
     "geoportal-access-lib": "3.4.6",
     "ol": "^10.3.1",
     "pinia": "^4.0.3",

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import ButtonToggle2D3D from '../ButtonToggle2D3D.vue/index.js'
+import ButtonToggle2D3D from '../ButtonToggle2D3D.vue'
 
 describe('ButtonToggle2D3D', () => {
   it('defaults to 2D with accessible switch semantics', () => {
