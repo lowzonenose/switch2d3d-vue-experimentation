@@ -1,6 +1,31 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { useGetConfig } from './getConfig'
 
+let map3dStyles
+
+// Un lien explicite permet de reessayer apres un echec CSS mis en cache par Vite.
+function loadMap3DStyles() {
+  if (!map3dStyles) {
+    let stylesheet
+    map3dStyles = import('@portail/map3d/style.css?url')
+      .then(({ default: url }) => new Promise((resolve, reject) => {
+        stylesheet = document.createElement('link')
+        stylesheet.rel = 'stylesheet'
+        stylesheet.href = url
+        stylesheet.dataset.map3dStyles = 'true'
+        stylesheet.onload = resolve
+        stylesheet.onerror = () => reject(new Error(`Impossible de charger les styles 3D : ${url}`))
+        document.head.appendChild(stylesheet)
+      }))
+      .catch((cause) => {
+        stylesheet?.remove()
+        map3dStyles = null
+        throw cause
+      })
+  }
+  return map3dStyles
+}
+
 export function useMapMode(options) {
   const map2dRef = ref(null)
   const map3dRef = ref(null)
@@ -39,7 +64,10 @@ export function useMapMode(options) {
     loadingError.value = null
     try {
       if (!map3DComponent.value) {
-        const { default: Map3D } = await import('@/components/Map3D.vue')
+        const [{ Map3D }] = await Promise.all([
+          import('@portail/map3d'),
+          loadMap3DStyles(),
+        ])
         if (disposed) return
         map3DComponent.value = Map3D
         await nextTick()

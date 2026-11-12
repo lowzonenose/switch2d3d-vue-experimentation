@@ -6,29 +6,20 @@ dependance pour la reactivite. Chaque controleur possede ses propres ressources.
 
 ## Integration dans un autre projet
 
-Integrer ce dossier dans un projet Vue 3 utilisant un bundler, avec les memes
-dependances cartographiques que cette application : `ol`, `itowns`, `three`,
-`geopf-extensions-openlayers`, `geopf-extensions-itowns`, `geoportal-access-lib`,
-`proj4` et `buffer`. Les versions des extensions utilisees ici sont fournies sous
-forme d'archives dans le dossier `modules` a la racine du projet.
-
-Les fabriques importent leurs styles : `ol/ol.css` et
-`geopf-extensions-openlayers/css/Classic.css` pour la 2D,
-`geopf-extensions-itowns/css/Classic.css` pour la 3D.
-Ne pas les importer globalement dans le point d'entree de l'application.
-Avec Vite, conserver si necessaire `define: { global: 'globalThis' }`, comme dans
-la configuration de cette application. Le navigateur doit prendre en charge
-WebGL et ResizeObserver.
+Pour reutiliser la 3D dans une application Vue 3 + Vite, construire et installer
+la bibliotheque [`@portail/map3d`](packages/map3d/README.md). Sa documentation
+decrit les dependances, le plugin Vite, les styles, le composant et le paquet
+distribuable. L'index de l'application reexporte directement le controleur 3D.
+Le projet experimental est proprietaire de `src/maps/state.js` et de
+`src/maps/loadMapConfig.js` ; la bibliotheque ne charge pas le catalogue et ne
+cree pas d'etat. La 2D reste propre a ce projet et conserve ses dependances
+OpenLayers.
 
 Les extensions OpenLayers et iTowns reutilisent des selecteurs CSS `GP*`.
-La configuration PostCSS de Vite limite les regles CSS des extensions a
-`.map2d` ou `.map3d`, sans augmenter leur specificite (`:where`).
-Les variables declarees sur `:root` sont egalement limitees au conteneur.
-Chaque controleur ajoute sa classe a sa cible. Un alias Vite redirige l'import
-automatique `./packages/Styles` de l'index iTowns vers son bundle Classic,
-pour ne pas charger les memes styles une seconde fois.
-Conserver cette isolation et cet alias
-dans la configuration du bundler d'un projet hote utilisant les deux moteurs.
+La configuration Vite de l'application limite les styles OpenLayers a `.map2d`.
+La bibliotheque 3D fournit un CSS deja limite a `.map3d`. Les deux utilisent
+`:where` pour ne pas augmenter la specificite et limitent aussi les variables
+declarees sur `:root`. Chaque controleur ajoute sa classe a sa cible.
 
 Dans l'application, le composant 3D et iTowns sont charges par `import()`
 uniquement a la premiere demande de bascule. Le globe est ensuite conserve
@@ -41,9 +32,11 @@ contre les initialisations apres demontage. Il fournit aux composants les
 options des moteurs avec un predicat `isActive` propre a chaque vue.
 
 Pour conserver ce chargement differe dans un projet hote, importer la fabrique
-2D depuis `./maps/createMap2D.js`, puis charger `./maps/createMap3D.js` par
-`import()` a la demande. L'index commun ci-dessous exporte statiquement les
-deux moteurs : ne pas l'utiliser comme point d'entree du chargement differe.
+2D separement et charger `@portail/map3d` et ses styles a la demande.
+L'application charge les styles depuis leur URL dans un element `link`, afin
+de pouvoir reessayer si le premier chargement echoue. L'index commun ci-dessous
+exporte statiquement les deux moteurs : ne pas l'utiliser comme point d'entree
+du chargement differe.
 
 Exemple de composant sans Pinia :
 
@@ -156,7 +149,9 @@ pour la compatibilite. Remplacer `layerIds` conserve les proprietes des couches
 deja presentes et adopte le nouvel ordre. Utiliser les actions pour modifier
 les couches, plutot que de muter ces listes derivees.
 Les anciens objets ne fournissant que `layers2D` / `layers3D` restent acceptes
-par les adaptateurs, avec les proprietes par defaut.
+par les adaptateurs, avec les proprietes par defaut. En 3D, l'application doit
+preciser `elevationLayerId` pour identifier le relief dans ces listes ; les
+descripteurs peuvent aussi le declarer avec `type: 'elevation'`.
 
 `createMap2D({ view, layers, controls, mapOptions, controlTypes, isActive })` et
 `createMap3D({ view, layers, controls, globeOptions, controlTypes, attribution,
@@ -206,9 +201,9 @@ opacite et leur ordre. Les gestionnaires natifs des deux moteurs mettent a jour
 le meme store. La reconciliation ne recree pas les couches pour une simple
 modification de propriete ; un changement de source recree la couche concernee.
 Les ecouteurs de proprietes sont retires a la suppression et au nettoyage.
-Les controles sont ajoutes sans doublon ; leur retrait dynamique n'est pas
-encore synchronise.
+Les controles sont ajoutes sans doublon ; leur retrait dynamique est synchronise
+en 3D mais pas encore en 2D.
 
-Les anciens composables `useLoad2D` / `useDispose2D` et `useLoad3D` /
-`useDispose3D` restent des adaptateurs de compatibilite, limites a une instance
-par moteur. Utiliser les fabriques pour toute nouvelle integration multi-cartes.
+Les anciens composables `useLoad2D` / `useDispose2D` restent des adaptateurs de
+compatibilite, limites a une instance 2D. Pour la 3D et les integrations
+multi-cartes, utiliser les fabriques ou le composant de la bibliotheque.

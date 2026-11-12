@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 import { fromLonLat } from 'ol/proj'
+import { createMap3D } from '@portail/map3d/core'
 import { useMapStore } from '@/stores/map'
 import { useLoad2D, useDispose2D } from '../load2D'
-import { useLoad3D, useDispose3D } from '../load3D'
-import { createMap2D, createMap3D, createMapState, loadMapConfig } from '../../maps/index.js'
+import {
+    createMap2D, createMap3D as createMap3DFromIndex, createMapState, loadMapConfig,
+} from '../../maps/index.js'
 
 const configMocks = vi.hoisted(() => ({ call: vi.fn() }))
 
@@ -79,7 +81,10 @@ vi.mock('geopf-extensions-openlayers', () => ({
 }))
 
 describe('shared map parameters', () => {
+    let controller3D
+
     beforeEach(() => {
+        controller3D = null
         setActivePinia(createPinia())
         configMocks.call.mockReset().mockImplementation((options) => options.onSuccess())
         vi.stubGlobal('ResizeObserver', class {
@@ -90,8 +95,12 @@ describe('shared map parameters', () => {
     })
     afterEach(() => {
         useDispose2D()
-        useDispose3D()
+        controller3D?.dispose()
         vi.unstubAllGlobals()
+    })
+
+    it('re-exports the 3D controller from the library', () => {
+        expect(createMap3DFromIndex).toBe(createMap3D)
     })
 
     it('loads a configurable catalog and propagates configuration failures', async () => {
@@ -189,7 +198,8 @@ describe('shared map parameters', () => {
     it('shares store changes and navigation between 2D and 3D without feedback', async () => {
         const store = useMapStore()
         const map = await useLoad2D(document.createElement('div'), { layers2D: [] }, { controls2D: [] }, store)
-        const globe = await useLoad3D(document.createElement('div'), { layers3D: [] }, { controls3D: [] }, store)
+        controller3D = createMap3D({ layers: { layers3D: [] }, controls: { controls3D: [] }, view: store })
+        const globe = await controller3D.load(document.createElement('div'))
         expect(globe.getCenter().lon).toBe(store.coordinates.longitude)
         expect(globe.getZoom()).toBe(store.zoom - 1)
 
@@ -214,7 +224,7 @@ describe('shared map parameters', () => {
         await vi.waitFor(() => expect(globe.getZoom()).toBe(11))
         expect(globe.getGlobeView().controls.lookAtCoordinate).toHaveBeenCalledTimes(2)
 
-        useDispose3D()
+        controller3D.dispose()
         store.zoom = 8
         await nextTick()
         expect(globe.getZoom()).toBe(11)
@@ -225,7 +235,8 @@ describe('shared map parameters', () => {
 
     it('applies the latest parameters during initialization and an ongoing update', async () => {
         const store = useMapStore()
-        const loading = useLoad3D(document.createElement('div'), { layers3D: [] }, { controls3D: [] }, store)
+        controller3D = createMap3D({ layers: { layers3D: [] }, controls: { controls3D: [] }, view: store })
+        const loading = controller3D.load(document.createElement('div'))
         store.setView({ longitude: 4.8, latitude: 45.7 }, 12)
         const globe = await loading
         await vi.waitFor(() => expect(globe.getZoom()).toBe(11))

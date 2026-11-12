@@ -61,6 +61,11 @@ npm run lint
 
 ## Modules réutilisables
 
+La [bibliothèque Vue 3 `@portail/map3d`](packages/map3d/README.md) fournit le
+composant 3D, un contrôleur par instance et leurs types. Le projet expérimental
+fournit l'état partagé et la configuration du catalogue. La bibliothèque peut
+être construite et installée dans une autre application Vue 3 + Vite.
+
 Le [module cartographique](USAGE.md) fournit des contrôleurs 2D/3D
 propres à chaque instance, un état réactif configurable et le chargement du catalogue,
 sans dépendre de Pinia ni des alias de l'application. Sa documentation inclut un
@@ -68,11 +73,13 @@ exemple d'intégration dans un autre projet Vue.
 
 ### Composants cartographiques Vue
 
-[Map2D](src/components/Map2D.vue) et [Map3D](src/components/Map3D.vue) encapsulent
+[Map2D](src/components/Map2D.vue) et le composant
+[GeopfMap3D](packages/map3d/src/GeopfMap3D.vue) de la bibliothèque encapsulent
 l'élément cible de chaque carte et le cycle de vie de son contrôleur. Transmettez
 les options du contrôleur (`layers`, `controls`, `view` et les paramètres facultatifs
-du moteur) via la prop obligatoire `options`. Les options sont lues à la création
-du composant ; les objets d'état restent réactifs.
+du moteur) via la prop `options`. La 3D est chargée directement depuis la
+bibliothèque, avec `auto-load` désactivé pour préserver le chargement à la demande.
+Les options sont lues à la création du composant ; les objets d'état restent réactifs.
 
 Une fois la configuration prête, appelez la méthode exposée `load()` via une
 référence de template. Elle renvoie la promesse de chargement du contrôleur et

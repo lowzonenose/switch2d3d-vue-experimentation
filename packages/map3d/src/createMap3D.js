@@ -1,7 +1,6 @@
 import { watch } from 'vue'
 import 'geopf-extensions-itowns/css/Classic.css'
 import { Coordinates } from 'itowns'
-import { ELEVATION_LAYER_ID, getLayerDescriptors } from './state.js'
 import {
   GlobeViewExtended,
   GeopfElevation,
@@ -15,29 +14,24 @@ import {
 // niveau 3D = niveau 2D - 1 pour des tuiles de meme taille.
 const ZOOM_OFFSET_3D = -1
 
-// Meme URL que celle d'OpenLayers (ordre et casse des parametres) afin de
-// partager le cache HTTP du navigateur entre les vues 2D et 3D.
-function toSharedTileUrl(url) {
-  const { origin, pathname, searchParams } = new URL(url)
-  const params = new Map([...searchParams].map(([key, value]) => [key.toLowerCase(), value]))
-  const get = (key) => encodeURIComponent(params.get(key) ?? '')
-  return `${origin}${pathname}?layer=${get('layer')}&style=${get('style')}` +
-    `&tilematrixset=${get('tilematrixset')}&Service=WMTS&Request=GetTile` +
-    `&Version=${get('version')}&Format=${get('format')}` +
-    '&TileMatrix=%TILEMATRIX&TileCol=%COL&TileRow=%ROW'
-}
-
 const defaultControlTypes = {
   LayerSwitcher,
   Scale,
   MousePosition
 }
 
+function getLayerDescriptors(layers) {
+  return layers.descriptors3D ?? layers.layers3D.map((id, order) => {
+    if (typeof id !== 'string' || !id.trim()) throw new Error('Identifiant de couche invalide')
+    return { id, type: 'WMTS', visible: true, opacity: 1, order, source: { layer: id } }
+  })
+}
+
 export function createMap3D({
   layers,
   controls,
   view,
-  elevationLayerId = ELEVATION_LAYER_ID,
+  elevationLayerId,
   controlTypes = {},
   globeOptions = {},
   isActive = () => true,
@@ -75,7 +69,7 @@ export function createMap3D({
         for (const key of keys) globe.forgetByKey(key)
       }
       layerKeys.clear()
-      for (const widget of [...globe.getWidgets()]) globe.removeWidget(widget)
+      for (const widget of Array.from(globe.getWidgets())) globe.removeWidget(widget)
       clearTimeout(globe._preRenderTimer)
       const globeView = globe.getGlobeView()
       globeView.dispose()
@@ -144,7 +138,6 @@ export function createMap3D({
         { immediate: true },
       )
       const updateView = () => {
-        console.warn('Updating view from 3D map', getCoordinates(), globe.getZoom(), view.zoom)
         if (!applyingView && active && isActive()) {
           view.setView(getCoordinates(), globe.getZoom() - ZOOM_OFFSET_3D)
         }
@@ -170,7 +163,7 @@ export function createMap3D({
           publishPending = true
           queueMicrotask(() => {
             publishPending = false
-            if (!active || loadedLayers.get(id) !== layer || !layers.layers2D.includes(id)) return
+            if (!active || loadedLayers.get(id) !== layer || !layers.layers3D.includes(id)) return
             const patch = {}
             for (const property of changes) patch[property === 'sequence' ? 'order' : property] = layer[property]
             changes.clear()
@@ -194,7 +187,6 @@ export function createMap3D({
           if (!layer?.isColorLayer || !layer.source?.isWMTSSource) return
           const parameters = new URL(layer.source.url).searchParams
           const id = parameters.get('LAYER') ?? parameters.get('layer')
-          layer.source.url = toSharedTileUrl(layer.source.url)
           if (id && ![...loadedLayers.values()].includes(layer)) {
             observeLayer(id, layer)
             const descriptor = {
@@ -208,7 +200,7 @@ export function createMap3D({
           for (const [id, layer] of loadedLayers) {
             if (layer.id === layerId) {
               forgetLayer(id)
-              if (id !== elevationLayerId) layers.removeLayer(id)
+              if (layer.isColorLayer && id !== elevationLayerId) layers.removeLayer(id)
               break
             }
           }
@@ -216,10 +208,10 @@ export function createMap3D({
       )
       async function syncLayers() {
         if (!active) return
-        const descriptors = getLayerDescriptors(layers, '3D')
+        const descriptors = getLayerDescriptors(layers)
         for (const [id, layer] of loadedLayers) {
           const descriptor = descriptors.find((item) => item.id === id)
-          if (!descriptor || (definitions.has(id) &&
+          if (!layers.layers3D.includes(id) || !descriptor || (definitions.has(id) &&
             definitions.get(id) !== JSON.stringify([descriptor.type, descriptor.source]))) {
             forgetLayer(id)
             applyingLayers = true
@@ -234,10 +226,11 @@ export function createMap3D({
           const { id, type, source } = descriptor
           if (!active) return
           if (loadedLayers.has(id) || !layers.layers3D.includes(id)) continue
-          if (id !== elevationLayerId && type !== 'WMTS') {
+          const isElevation = type === 'elevation' || (elevationLayerId != null && id === elevationLayerId)
+          if (!isElevation && type !== 'WMTS') {
             throw new Error(`Type de couche 3D non pris en charge : ${type}`)
           }
-          const Layer = id === elevationLayerId ? GeopfElevation : GeopfWMTS
+          const Layer = isElevation ? GeopfElevation : GeopfWMTS
           const layer = new Layer({ layer: source.layer, itownsParams: { source: { attribution } } })
           layer.source.url = layer.source.url.replace(/^http:/, 'https:')
           loadedLayers.set(id, layer)
@@ -258,7 +251,7 @@ export function createMap3D({
         applyingLayers = true
         try {
           let order = 0
-          for (const descriptor of getLayerDescriptors(layers, '3D')) {
+          for (const descriptor of getLayerDescriptors(layers)) {
             const layer = loadedLayers.get(descriptor.id)
             if (!layer) continue
             if (layer.visible !== descriptor.visible) globe.setLayerVisibility(layer.id, descriptor.visible)
@@ -272,9 +265,9 @@ export function createMap3D({
           applyingLayers = false
         }
       }
-      let additions = syncLayers()
+      let additions = Promise.resolve()
       stopWatchingLayers = watch(
-        () => getLayerDescriptors(layers, '3D'),
+        () => [layers.layers3D, getLayerDescriptors(layers)],
         () => {
           additions = additions.then(syncLayers).catch((cause) => {
             if (active) console.error('Impossible de synchroniser les couches 3D :', cause)
@@ -282,26 +275,34 @@ export function createMap3D({
         },
         { deep: true },
       )
+      additions = additions.then(syncLayers)
       await additions
       if (!active) return
 
-      const loadedControlIds = new Set()
+      const loadedControls = new Map()
       stopWatchingControls = watch(
         () => controls.controls3D,
         (ids) => {
+          for (const [id, widget] of loadedControls) {
+            if (!ids.includes(id)) {
+              globe.removeWidget(widget)
+              loadedControls.delete(id)
+            }
+          }
           for (const id of ids) {
-            if (loadedControlIds.has(id)) continue
+            if (loadedControls.has(id)) continue
             try {
               const Control = Object.hasOwn(registry, id) ? registry[id] : null
               if (!Control) throw new Error(`Controle 3D inconnu : ${id}`)
-              globe.addWidget(new Control({}))
-              loadedControlIds.add(id)
+              const widget = new Control({})
+              globe.addWidget(widget)
+              loadedControls.set(id, widget)
             } catch (cause) {
               console.error(`Impossible d'ajouter le controle 3D ${id} :`, cause)
             }
           }
         },
-        { immediate: true },
+        { immediate: true, deep: true },
       )
       return globe
     } catch (cause) {

@@ -2,7 +2,7 @@
 import ButtonToggle2D3D from '@/components/ButtonToggle2D3D.vue'
 import Map2D from '@/components/Map2D.vue'
 import Patience from '@/components/Patience.vue'
-import { useLayersStore } from '@/stores/layers'
+import { ELEVATION_LAYER_ID, useLayersStore } from '@/stores/layers'
 import { useControlsStore } from '@/stores/controls'
 import { useMapStore } from '@/stores/map'
 import { useMapMode } from '@/composables/useMapMode'
@@ -23,7 +23,12 @@ const {
   canToggle,
   loadingError,
   setMapMode,
-} = useMapMode({ layers: layersStore, controls: controlsStore, view: mapStore })
+} = useMapMode({
+  layers: layersStore,
+  controls: controlsStore,
+  view: mapStore,
+  elevationLayerId: ELEVATION_LAYER_ID,
+})
 </script>
 
 <template>
@@ -52,6 +57,7 @@ const {
       id="map3d"
       class="map"
       :options="options3D"
+      :auto-load="false"
       :class="{ 'map-hidden': !is3D }"
       :inert="is3D ? null : ''"
       :aria-hidden="!is3D"

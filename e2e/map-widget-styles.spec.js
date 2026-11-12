@@ -84,3 +84,38 @@ test('preserves 2D widget styles after loading and revisiting 3D', async ({ page
   }
   await page.getByTestId('outside-map-widget').evaluate((element) => element.remove())
 })
+
+test('retries the 3D stylesheet after a loading failure', async ({ page }) => {
+  test.setTimeout(90000)
+  let styleRequests = 0
+  await page.route(/\/(?:style-[^/]+|style)\.css(?:[?#].*)?$/, async (route) => {
+    if (route.request().resourceType() !== 'stylesheet') {
+      await route.continue()
+      return
+    }
+    styleRequests++
+    if (styleRequests === 1) {
+      await route.fulfill({ status: 503, body: '' })
+    } else {
+      await route.continue()
+    }
+  })
+
+  await page.goto('/switch2d3d-vue-experimentation/experimentation')
+  const toggle = page.getByRole('switch', { name: 'Vue 3D' })
+  await expect(toggle).toBeEnabled({ timeout: 30000 })
+  await toggle.click()
+  await expect(page.getByRole('alert')).toContainText('Impossible de charger la carte 3D')
+  await expect(toggle).toHaveAttribute('aria-checked', 'false')
+  await expect(page.locator('#map2d')).not.toHaveClass(/map-hidden/)
+  await expect(page.locator('#map3d')).toHaveCount(0)
+  expect(styleRequests).toBe(1)
+
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-checked', 'true', { timeout: 45000 })
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await expect(page.locator('#map3d [id^="GPlayersList-"]')).toHaveCSS(
+    'box-shadow', 'rgb(0, 0, 0) 0px 0px 6px 0px',
+  )
+  expect(styleRequests).toBe(2)
+})

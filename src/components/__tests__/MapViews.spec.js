@@ -1,26 +1,26 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import Map2D from '../Map2D.vue'
-import Map3D from '../Map3D.vue'
+import { GeopfMap3D } from '@portail/map3d'
 import { createMap2D } from '@/maps/createMap2D.js'
-import { createMap3D } from '@/maps/createMap3D.js'
+import { createMap3D } from '@portail/map3d/core'
 
 vi.mock('@/maps/createMap2D.js', () => ({
   createMap2D: vi.fn(() => ({ load: vi.fn(async () => null), dispose: vi.fn() })),
 }))
-vi.mock('@/maps/createMap3D.js', () => ({
+vi.mock('@portail/map3d/core', () => ({
   createMap3D: vi.fn(() => ({ load: vi.fn(async () => null), dispose: vi.fn() })),
 }))
 
 describe.each([
   ['Map2D', Map2D, createMap2D, 'map2d'],
-  ['Map3D', Map3D, createMap3D, 'map3d'],
+  ['Map3D', GeopfMap3D, createMap3D, 'map3d'],
 ])('%s', (_name, component, createController, className) => {
   beforeEach(() => vi.clearAllMocks())
 
   it('loads into its own element only when requested and disposes on unmount', async () => {
     const options = { layers: {}, controls: {}, view: {} }
-    const wrapper = mount(component, { props: { options } })
+    const wrapper = mount(component, { props: { options, ...(className === 'map3d' && { autoLoad: false }) } })
     const controller = createController.mock.results[0].value
 
     expect(createController).toHaveBeenCalledExactlyOnceWith(options)
@@ -36,7 +36,7 @@ describe.each([
 
   it('forwards visibility and accessibility attributes to the map element', () => {
     const wrapper = mount(component, {
-      props: { options: {} },
+      props: { options: {}, ...(className === 'map3d' && { autoLoad: false }) },
       attrs: { id: 'custom-map', class: 'map-hidden', inert: '', 'aria-hidden': 'true' },
     })
 
@@ -48,7 +48,7 @@ describe.each([
   })
 
   it('propagates loading errors to the parent', async () => {
-    const wrapper = mount(component, { props: { options: {} } })
+    const wrapper = mount(component, { props: { options: {}, ...(className === 'map3d' && { autoLoad: false }) } })
     const controller = createController.mock.results[0].value
     const cause = new Error('Map loading failed')
     controller.load.mockRejectedValueOnce(cause)

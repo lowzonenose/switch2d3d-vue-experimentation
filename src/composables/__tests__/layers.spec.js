@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { nextTick } from 'vue'
+import { nextTick, reactive } from 'vue'
 import { LayerWMTS } from 'geopf-extensions-openlayers'
 import { GeopfWMTS } from 'geopf-extensions-itowns'
 import { ELEVATION_LAYER_ID, useLayersStore } from '@/stores/layers'
 import { useControlsStore } from '@/stores/controls'
+import { useMapStore } from '@/stores/map'
+import { createMapState } from '@/maps/state.js'
 import { useLoad2D, useDispose2D } from '../load2D'
-import { useLoad3D, useDispose3D } from '../load3D'
+import { createMap3D } from '@portail/map3d/core'
 
 const mocks = vi.hoisted(() => ({
     add2D: vi.fn(),
@@ -77,7 +79,9 @@ vi.mock('geopf-extensions-itowns', async () => {
     }
     return {
         GeopfWMTS: Layer,
-        GeopfElevation: class extends Layer { },
+        GeopfElevation: class extends Layer {
+            constructor(options) { super(options); this.isColorLayer = false }
+        },
         Scale: class Scale { },
         LayerSwitcher: class LayerSwitcher { },
         MousePosition: class MousePosition { },
@@ -128,7 +132,10 @@ vi.mock('geopf-extensions-itowns', async () => {
             getCenter() { return { lon: this.options.coord.longitude, lat: this.options.coord.latitude } }
             getZoom() { return this.options.zoom }
             addWidget(widget) { this.widgets.push(widget); mocks.addControl3D(widget) }
-            removeWidget(widget) { mocks.removeControl3D(widget) }
+            removeWidget(widget) {
+                this.widgets = this.widgets.filter((item) => item !== widget)
+                mocks.removeControl3D(widget)
+            }
             getWidgets() { return this.widgets }
             getTargetElement() { return this.target }
             getGlobeView() {
@@ -144,10 +151,18 @@ vi.mock('geopf-extensions-itowns', async () => {
 })
 
 describe('store-driven map layers', () => {
+    let controller3D
+
     beforeEach(() => {
         vi.clearAllMocks()
         setActivePinia(createPinia())
         useControlsStore().controlIds = ['LayerSwitcher']
+        controller3D = createMap3D({
+            layers: useLayersStore(),
+            controls: useControlsStore(),
+            view: useMapStore(),
+            elevationLayerId: ELEVATION_LAYER_ID,
+        })
         vi.stubGlobal('ResizeObserver', class {
             observe() { }
             unobserve() { }
@@ -157,24 +172,137 @@ describe('store-driven map layers', () => {
 
     afterEach(() => {
         useDispose2D()
-        useDispose3D()
+        controller3D.dispose()
         vi.unstubAllGlobals()
     })
 
     it('loads shared layers in both views, with elevation only in 3D', async () => {
         const store = useLayersStore()
         await useLoad2D(document.createElement('div'), store)
-        await useLoad3D(document.createElement('div'), store)
+        await controller3D.load(document.createElement('div'))
         expect(mocks.add2D.mock.calls.map(([layer]) => layer.layer)).toEqual(store.layers2D)
         expect(mocks.add3D.mock.calls.map(([layer]) => layer.layer)).toEqual(store.layers3D)
         expect(mocks.add2D.mock.calls.map(([layer]) => layer.layer)).not.toContain(ELEVATION_LAYER_ID)
         expect(mocks.add3D.mock.calls.every(([layer]) => layer.source.url.startsWith('https:'))).toBe(true)
     })
 
+    it('uses the host elevation descriptor without a library-owned layer ID', async () => {
+        const state = createMapState({
+            layerIds: ['HOST.IMAGERY'], elevationLayerId: 'HOST.ELEVATION', controlIds: [],
+        })
+        const { view, layers, controls } = state
+        const controller = createMap3D({ view, layers, controls })
+        const removeLayer = vi.spyOn(layers, 'removeLayer')
+        try {
+            const globe = await controller.load(document.createElement('div'))
+            expect(globe.layers.get('HOST.ELEVATION:WMTS').isColorLayer).toBe(false)
+            expect(globe.layers.get('HOST.IMAGERY:WMTS').isColorLayer).toBe(true)
+            globe.removeLayer('HOST.ELEVATION:WMTS')
+            expect(removeLayer).not.toHaveBeenCalled()
+            expect(layers.layers2D).toEqual(['HOST.IMAGERY'])
+        } finally {
+            controller.dispose()
+        }
+    })
+
+    it('supports host-provided legacy layer IDs and an explicit elevation ID', async () => {
+        const layers = reactive({
+            layers2D: ['HOST.IMAGERY'],
+            layers3D: ['HOST.IMAGERY', 'HOST.ELEVATION'],
+            addLayer: vi.fn(),
+            removeLayer: vi.fn(),
+        })
+        const controller = createMap3D({
+            view: useMapStore(), layers, controls: { controls3D: [] }, elevationLayerId: 'HOST.ELEVATION',
+        })
+        try {
+            const globe = await controller.load(document.createElement('div'))
+            expect(globe.layers.get('HOST.IMAGERY:WMTS').isColorLayer).toBe(true)
+            expect(globe.layers.get('HOST.ELEVATION:WMTS').isColorLayer).toBe(false)
+        } finally {
+            controller.dispose()
+        }
+    })
+
+    it('rejects invalid legacy layer identifiers supplied by the host', async () => {
+        const controller = createMap3D({
+            view: useMapStore(), layers: { layers3D: [''] }, controls: { controls3D: [] },
+        })
+        try {
+            await expect(controller.load(document.createElement('div'))).rejects.toThrow('Identifiant de couche invalide')
+        } finally {
+            controller.dispose()
+        }
+    })
+
+    it('reconciles host layer changes made during initial 3D loading', async () => {
+        const layers = useLayersStore()
+        const firstId = layers.layers2D[0]
+        let finishAdding
+        mocks.add3D.mockImplementationOnce(() => new Promise((resolve) => { finishAdding = resolve }))
+        const loading = controller3D.load(document.createElement('div'))
+        await vi.waitFor(() => expect(finishAdding).toBeTypeOf('function'))
+
+        layers.updateLayer(firstId, { visible: false, opacity: 0.25 })
+        layers.addLayer('HOST.PENDING')
+        await nextTick()
+        finishAdding()
+
+        const globe = await loading
+        await vi.waitFor(() => expect(globe.layers.has('HOST.PENDING:WMTS')).toBe(true))
+        expect(globe.layers.get(`${firstId}:WMTS`)).toMatchObject({ visible: false, opacity: 0.25 })
+    })
+
+    it('observes enabled 3D layer IDs separately from host descriptors', async () => {
+        const layers = reactive({
+            layers2D: ['HOST.A', 'HOST.B'],
+            layers3D: ['HOST.A'],
+            descriptors3D: ['HOST.A', 'HOST.B'].map((id, order) => ({
+                id, type: 'WMTS', visible: true, opacity: 1, order, source: { layer: id },
+            })),
+            addLayer: vi.fn(),
+            removeLayer: vi.fn(),
+        })
+        const controller = createMap3D({ view: useMapStore(), controls: { controls3D: [] }, layers })
+        try {
+            const globe = await controller.load(document.createElement('div'))
+            expect(globe.layers.has('HOST.A:WMTS')).toBe(true)
+            expect(globe.layers.has('HOST.B:WMTS')).toBe(false)
+
+            layers.layers3D.push('HOST.B')
+            await vi.waitFor(() => expect(globe.layers.has('HOST.B:WMTS')).toBe(true))
+            layers.layers3D.splice(0, 1)
+            await vi.waitFor(() => expect(globe.layers.has('HOST.A:WMTS')).toBe(false))
+            expect(layers.removeLayer).not.toHaveBeenCalled()
+        } finally {
+            controller.dispose()
+        }
+    })
+
+    it('publishes 3D-only layer changes to the host', async () => {
+        const id = 'HOST.3D'
+        const layers = reactive({
+            layers2D: [],
+            layers3D: [id],
+            descriptors3D: [{ id, type: 'WMTS', visible: true, opacity: 1, order: 0, source: { layer: id } }],
+            addLayer: vi.fn(),
+            removeLayer: vi.fn(),
+            updateLayer: vi.fn(),
+        })
+        const controller = createMap3D({ view: useMapStore(), controls: { controls3D: [] }, layers })
+        try {
+            const globe = await controller.load(document.createElement('div'))
+            globe.setLayerOpacity(`${id}:WMTS`, 0.4)
+            await vi.waitFor(() => expect(layers.updateLayer).toHaveBeenCalledWith(id, { opacity: 0.4 }))
+        } finally {
+            controller.dispose()
+        }
+    })
+
     it('propagates additions once and stops observing after disposal', async () => {
         const store = useLayersStore()
         await useLoad2D(document.createElement('div'), store)
-        await useLoad3D(document.createElement('div'), store)
+        await controller3D.load(document.createElement('div'))
         store.addLayer('TEST.WMTS')
         store.addLayer('TEST.WMTS')
         await nextTick()
@@ -183,7 +311,7 @@ describe('store-driven map layers', () => {
         })
         expect(mocks.add2D).toHaveBeenCalledTimes(3)
         useDispose2D()
-        useDispose3D()
+        controller3D.dispose()
         store.addLayer('OTHER.WMTS')
         await nextTick()
         expect(mocks.add2D).toHaveBeenCalledTimes(3)
@@ -193,7 +321,7 @@ describe('store-driven map layers', () => {
     it('shares reactive controls without duplicates and cleans them up', async () => {
         const controls = useControlsStore()
         await useLoad2D(document.createElement('div'), useLayersStore(), controls)
-        await useLoad3D(document.createElement('div'), useLayersStore(), controls)
+        await controller3D.load(document.createElement('div'))
         expect(mocks.addControl2D.mock.calls.map(([control]) => control.constructor.name)).toEqual(['LayerSwitcher'])
         expect(mocks.addControl3D.mock.calls.map(([control]) => control.constructor.name)).toEqual(['LayerSwitcher'])
         controls.addControl('Scale')
@@ -203,7 +331,7 @@ describe('store-driven map layers', () => {
         expect(mocks.addControl2D.mock.calls.map(([control]) => control.constructor.name)).toEqual(['LayerSwitcher', 'Scale', 'MousePosition'])
         expect(mocks.addControl3D.mock.calls.map(([control]) => control.constructor.name)).toEqual(['LayerSwitcher', 'Scale', 'MousePosition'])
         useDispose2D()
-        useDispose3D()
+        controller3D.dispose()
         expect(mocks.removeControl2D).toHaveBeenCalledTimes(3)
         expect(mocks.removeControl3D).toHaveBeenCalledTimes(3)
         controls.controlIds = []
@@ -213,10 +341,42 @@ describe('store-driven map layers', () => {
         expect(mocks.addControl3D).toHaveBeenCalledTimes(3)
     })
 
+    it('observes in-place changes to the host 3D control list', async () => {
+        const controls = reactive({ controls3D: ['LayerSwitcher'] })
+        const controller = createMap3D({ view: useMapStore(), layers: useLayersStore(), controls })
+        try {
+            await controller.load(document.createElement('div'))
+            controls.controls3D.push('Scale')
+            await nextTick()
+            expect(mocks.addControl3D.mock.calls.map(([control]) => control.constructor.name))
+                .toEqual(['LayerSwitcher', 'Scale'])
+            controls.controls3D.splice(0, 1)
+            await nextTick()
+            expect(mocks.removeControl3D.mock.calls.map(([control]) => control.constructor.name))
+                .toEqual(['LayerSwitcher'])
+        } finally {
+            controller.dispose()
+        }
+    })
+
+    it('removes and restores controls when the 3D control list changes', async () => {
+        const controls = useControlsStore()
+        await controller3D.load(document.createElement('div'))
+        const widget = mocks.addControl3D.mock.calls[0][0]
+        controls.controlIds = []
+        await nextTick()
+        expect(mocks.removeControl3D).toHaveBeenCalledExactlyOnceWith(widget)
+        controls.controlIds = ['LayerSwitcher']
+        await nextTick()
+        expect(mocks.addControl3D).toHaveBeenCalledTimes(2)
+        controller3D.dispose()
+        expect(mocks.removeControl3D).toHaveBeenCalledTimes(2)
+    })
+
     it('shares store removals and allows adding the same layer again', async () => {
         const store = useLayersStore()
         const map = await useLoad2D(document.createElement('div'), store)
-        const globe = await useLoad3D(document.createElement('div'), store)
+        const globe = await controller3D.load(document.createElement('div'))
         const id = store.layers2D[0]
         store.removeLayer(id)
         await vi.waitFor(() => expect(globe.layers.has(`${id}:WMTS`)).toBe(false))
@@ -230,7 +390,7 @@ describe('store-driven map layers', () => {
     it('shares additions and removals performed directly in 3D', async () => {
         const store = useLayersStore()
         const map = await useLoad2D(document.createElement('div'), store)
-        const globe = await useLoad3D(document.createElement('div'), store)
+        const globe = await controller3D.load(document.createElement('div'))
         const id = store.layers2D[0]
         globe.removeLayer(`${id}:WMTS`)
         await nextTick()
@@ -246,7 +406,7 @@ describe('store-driven map layers', () => {
     it('shares additions and removals performed directly in 2D', async () => {
         const store = useLayersStore()
         const map = await useLoad2D(document.createElement('div'), store)
-        const globe = await useLoad3D(document.createElement('div'), store)
+        const globe = await controller3D.load(document.createElement('div'))
         const layer = map.getLayers().item(0)
         map.removeLayer(layer)
         await vi.waitFor(() => expect(globe.layers.has(`${layer.name}:WMTS`)).toBe(false))
@@ -259,7 +419,7 @@ describe('store-driven map layers', () => {
     it('does not resurrect a layer removed while its 3D addition is pending', async () => {
         const store = useLayersStore()
         const map = await useLoad2D(document.createElement('div'), store)
-        const globe = await useLoad3D(document.createElement('div'), store)
+        const globe = await controller3D.load(document.createElement('div'))
         let finishAdding
         mocks.add3D.mockImplementationOnce(() => new Promise((resolve) => { finishAdding = resolve }))
         store.addLayer('TEST.WMTS')
@@ -275,10 +435,10 @@ describe('store-driven map layers', () => {
     it('stops forwarding map layer events after disposal', async () => {
         const store = useLayersStore()
         const map = await useLoad2D(document.createElement('div'), store)
-        const globe = await useLoad3D(document.createElement('div'), store)
+        const globe = await controller3D.load(document.createElement('div'))
         const initialIds = [...store.layerIds]
         useDispose2D()
-        useDispose3D()
+        controller3D.dispose()
         map.removeLayer(map.getLayers().item(0))
         globe.removeLayer(`${initialIds[0]}:WMTS`)
         expect(store.layerIds).toEqual(initialIds)
@@ -291,7 +451,7 @@ describe('store-driven map layers', () => {
         store.updateLayer(first, { visible: false, opacity: 0.25 })
         store.reorderLayers([second, first])
         await nextTick()
-        const globe = await useLoad3D(document.createElement('div'), store)
+        const globe = await controller3D.load(document.createElement('div'))
         const image2D = map.getLayers().getArray().find((layer) => layer.name === first)
         const image3D = globe.layers.get(`${first}:WMTS`)
         expect(image2D.getVisible()).toBe(false)
@@ -318,7 +478,7 @@ describe('store-driven map layers', () => {
     it('propagates visibility, opacity and order from either layer manager without feedback', async () => {
         const store = useLayersStore()
         const map = await useLoad2D(document.createElement('div'), store)
-        const globe = await useLoad3D(document.createElement('div'), store)
+        const globe = await controller3D.load(document.createElement('div'))
         const [first, second] = store.layers2D
         const layer2D = map.getLayers().getArray().find((layer) => layer.name === first)
         const layer3D = globe.layers.get(`${first}:WMTS`)
@@ -345,7 +505,7 @@ describe('store-driven map layers', () => {
     it('captures properties of layers added directly in either engine', async () => {
         const store = useLayersStore()
         const map = await useLoad2D(document.createElement('div'), store)
-        const globe = await useLoad3D(document.createElement('div'), store)
+        const globe = await controller3D.load(document.createElement('div'))
         const layer2D = new LayerWMTS({ layer: 'FROM.2D' })
         layer2D.setVisible(false)
         layer2D.setOpacity(0.2)
@@ -365,7 +525,7 @@ describe('store-driven map layers', () => {
     it('applies descriptor changes made during a pending 3D layer addition', async () => {
         const store = useLayersStore()
         await useLoad2D(document.createElement('div'), store)
-        const globe = await useLoad3D(document.createElement('div'), store)
+        const globe = await controller3D.load(document.createElement('div'))
         let finishAdding
         mocks.add3D.mockImplementationOnce(() => new Promise((resolve) => { finishAdding = resolve }))
         store.addLayer({ id: 'TEST', visible: true, opacity: 1 })
@@ -382,7 +542,7 @@ describe('store-driven map layers', () => {
     it('rebuilds changed WMTS sources without changing shared identifiers', async () => {
         const store = useLayersStore()
         const map = await useLoad2D(document.createElement('div'), store)
-        const globe = await useLoad3D(document.createElement('div'), store)
+        const globe = await controller3D.load(document.createElement('div'))
         const id = store.layers2D[0]
         store.updateLayer(id, { source: { layer: 'OTHER.WMTS' }, opacity: 0.45, visible: false })
         await vi.waitFor(() => expect(globe.layers.has('OTHER.WMTS:WMTS')).toBe(true))
@@ -400,7 +560,7 @@ describe('store-driven map layers', () => {
 
     it('does not overwrite pending layer properties when another 3D layer changes', async () => {
         const store = useLayersStore()
-        const globe = await useLoad3D(document.createElement('div'), store)
+        const globe = await controller3D.load(document.createElement('div'))
         const first = store.layers2D[0]
         let finishAdding
         mocks.add3D.mockImplementationOnce(() => new Promise((resolve) => { finishAdding = resolve }))
@@ -418,14 +578,14 @@ describe('store-driven map layers', () => {
     it('detaches property listeners and cancels queued publications when disposed', async () => {
         const store = useLayersStore()
         const map = await useLoad2D(document.createElement('div'), store)
-        const globe = await useLoad3D(document.createElement('div'), store)
+        const globe = await controller3D.load(document.createElement('div'))
         const layer2D = map.getLayers().item(0)
         const layer3D = globe.layers.get(`${store.layers2D[0]}:WMTS`)
         const initial = JSON.parse(JSON.stringify(store.layerDescriptors))
         layer2D.setOpacity(0.1)
         layer3D.visible = false
         useDispose2D()
-        useDispose3D()
+        controller3D.dispose()
         await nextTick()
         layer2D.setVisible(false)
         layer3D.opacity = 0.2

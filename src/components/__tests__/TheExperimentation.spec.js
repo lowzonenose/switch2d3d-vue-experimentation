@@ -4,19 +4,30 @@ import { createPinia } from 'pinia'
 import TheExperimentation from '../TheExperimentation.vue'
 import Patience from '../Patience.vue'
 import { createMap2D } from '@/maps/createMap2D.js'
-import { createMap3D } from '@/maps/createMap3D.js'
+import { createMap3D } from '@portail/map3d/core'
+import { ELEVATION_LAYER_ID } from '@/stores/layers'
 import { useGetConfig } from '@/composables/getConfig'
 
 vi.mock('@/composables/getConfig', () => ({ useGetConfig: vi.fn() }))
 vi.mock('@/maps/createMap2D.js', () => ({
     createMap2D: vi.fn(() => ({ load: vi.fn(async () => null), dispose: vi.fn() })),
 }))
-vi.mock('@/maps/createMap3D.js', () => ({
+vi.mock('@portail/map3d/core', () => ({
     createMap3D: vi.fn(() => ({ load: vi.fn(async () => null), dispose: vi.fn() })),
 }))
 
 describe('TheExperimentation', () => {
-    beforeEach(() => vi.clearAllMocks())
+    beforeEach(() => {
+        vi.clearAllMocks()
+        const appendChild = document.head.appendChild.bind(document.head)
+        vi.spyOn(document.head, 'appendChild').mockImplementation((element) => {
+            const result = appendChild(element)
+            if (element instanceof HTMLLinkElement && element.dataset.map3dStyles === 'true') {
+                queueMicrotask(() => element.dispatchEvent(new Event('load')))
+            }
+            return result
+        })
+    })
     afterEach(() => vi.restoreAllMocks())
 
     it('creates 3D only on the first toggle and reuses both maps afterwards', async () => {
@@ -40,6 +51,7 @@ describe('TheExperimentation', () => {
         await vi.waitFor(() => expect(toggle.attributes('aria-checked')).toBe('true'))
         const map3d = wrapper.get('#map3d')
         const options3D = createMap3D.mock.calls[0][0]
+        expect(options3D.elevationLayerId).toBe(ELEVATION_LAYER_ID)
         expect(options2D.isActive()).toBe(false)
         expect(options3D.isActive()).toBe(true)
 
