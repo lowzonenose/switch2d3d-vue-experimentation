@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { reactive } from 'vue'
-import GeopfMap3D from '../Map3D.vue/index.js'
+import Map3D from '../Map3D.vue/index.js'
 import * as library from '../index.js'
 import packageInfo from '../../package.json'
 import { createMap3D } from '@portail/map3d/core'
@@ -13,11 +13,11 @@ vi.mock('@portail/map3d/core', () => ({
   })),
 }))
 
-describe('GeopfMap3D', () => {
+describe('Map3D', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('exports the renderer without host state or configuration helpers', () => {
-    expect(Object.keys(library).sort()).toEqual(['GeopfMap3D', 'createMap3D', 'useMap3D'])
+    expect(Object.keys(library).sort()).toEqual(['Map3D', 'createMap3D', 'useMap3D'])
     expect(packageInfo.exports).not.toHaveProperty('./state')
     expect(packageInfo.exports).not.toHaveProperty('./config')
   })
@@ -25,8 +25,8 @@ describe('GeopfMap3D', () => {
   it('initializes independent instances with host options and disposes them on unmount', async () => {
     const firstOptions = reactive({ view: { coordinates: { longitude: 2, latitude: 48 }, zoom: 10 } })
     const secondOptions = reactive({ view: { coordinates: { longitude: 4, latitude: 45 }, zoom: 8 } })
-    const first = mount(GeopfMap3D, { props: { options: firstOptions } })
-    const second = mount(GeopfMap3D, { props: { options: secondOptions } })
+    const first = mount(Map3D, { props: { options: firstOptions } })
+    const second = mount(Map3D, { props: { options: secondOptions } })
     const firstController = createMap3D.mock.results[0].value
     const secondController = createMap3D.mock.results[1].value
     await vi.waitFor(() => expect(first.emitted('ready')).toHaveLength(1))
@@ -47,7 +47,7 @@ describe('GeopfMap3D', () => {
       layers: { layerDescriptors: [{ id: 'plan', opacity: 1 }] },
       controls: { controls3D: ['Scale'] },
     })
-    const wrapper = mount(GeopfMap3D, { props: { options, autoLoad: false } })
+    const wrapper = mount(Map3D, { props: { options, autoLoad: false } })
     const received = createMap3D.mock.calls[0][0]
     expect(received).toBe(options)
 
@@ -61,7 +61,7 @@ describe('GeopfMap3D', () => {
   })
 
   it('emits and rejects manual loading failures', async () => {
-    const wrapper = mount(GeopfMap3D, { props: { options: {}, autoLoad: false } })
+    const wrapper = mount(Map3D, { props: { options: {}, autoLoad: false } })
     const failure = new Error('globe indisponible')
     createMap3D.mock.results[0].value.load.mockRejectedValueOnce(failure)
 
@@ -72,7 +72,7 @@ describe('GeopfMap3D', () => {
 
   it('does not emit ready after unmount while loading is pending', async () => {
     let finish
-    const wrapper = mount(GeopfMap3D, { props: { options: {}, autoLoad: false } })
+    const wrapper = mount(Map3D, { props: { options: {}, autoLoad: false } })
     createMap3D.mock.results[0].value.load.mockReturnValueOnce(new Promise((resolve) => { finish = resolve }))
     const loading = wrapper.vm.load()
     wrapper.unmount()

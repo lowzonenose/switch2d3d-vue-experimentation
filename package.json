@@ -3,10 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/map3d"],
+  "workspaces": [
+    "packages/map3d"
+  ],
   "scripts": {
     "build:map3d": "npm run build --workspace @portail/map3d",
-    "predev": "npm run build:map3d",
     "prebuild": "npm run build:map3d",
     "pretest:unit": "npm run build:map3d",
     "dev": "vite",
@@ -22,7 +23,7 @@
   "dependencies": {
     "@portail/map3d": "file:packages/map3d",
     "buffer": "^6.0.3",
-    "geopf-extensions-openlayers": "./modules/geopf-extensions-openlayers-1.0.0-beta.16-608.tgz",
+    "geopf-extensions-openlayers": "./modules/geopf-extensions-openlayers-1.0.0-beta.16-661.tgz",
     "geopf-extensions-itowns": "./modules/geopf-extensions-itowns-1.0.0-beta.1.tgz",
     "geoportal-access-lib": "3.4.6",
     "ol": "^10.3.1",

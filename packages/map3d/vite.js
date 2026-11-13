@@ -2,7 +2,7 @@ import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 
-export function geopfMap3D() {
+export function PluginMap3D() {
   return {
     name: 'geopf-map3d',
     config() {

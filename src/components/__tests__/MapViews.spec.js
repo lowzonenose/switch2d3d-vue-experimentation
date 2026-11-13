@@ -1,7 +1,7 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import Map2D from '../Map2D.vue'
-import { GeopfMap3D } from '@portail/map3d'
+import { Map3D } from '@portail/map3d'
 import { createMap2D } from '@/maps/createMap2D.js'
 import { createMap3D } from '@portail/map3d/core'
 
@@ -14,7 +14,7 @@ vi.mock('@portail/map3d/core', () => ({
 
 describe.each([
   ['Map2D', Map2D, createMap2D, 'map2d'],
-  ['Map3D', GeopfMap3D, createMap3D, 'map3d'],
+  ['Map3D', Map3D, createMap3D, 'map3d'],
 ])('%s', (_name, component, createController, className) => {
   beforeEach(() => vi.clearAllMocks())
 

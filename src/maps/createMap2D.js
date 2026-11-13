@@ -134,7 +134,10 @@ export function createMap2D({ layers, controls, view, controlTypes = {}, mapOpti
                 if (type !== 'WMTS') throw new Error(`Type de couche 2D non pris en charge : ${type}`)
                 let layer = loadedLayers.get(id)
                 if (!layer) {
-                  layer = new LayerWMTS({ layer: source.layer })
+                  layer = new LayerWMTS({
+                    layer: source.layer,
+                    urlTemplate: "LAYER={Layer}&FORMAT={format}&SERVICE=WMTS&VERSION={version}&REQUEST=GetTile&STYLE={style}&TILEMATRIXSET={tilematrixset}&TILEMATRIX={TileMatrix}&TILEROW={TileRow}&TILECOL={TileCol}"
+                  })
                   observeLayer(id, layer)
                   currentMap.addLayer(layer)
                 }

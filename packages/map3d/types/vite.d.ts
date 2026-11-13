@@ -1,2 +1,2 @@
 import type { Plugin } from 'vite'
-export declare function geopfMap3D(): Plugin
+export declare function PluginMap3D(): Plugin

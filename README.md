@@ -74,7 +74,7 @@ exemple d'intégration dans un autre projet Vue.
 ### Composants cartographiques Vue
 
 [Map2D](src/components/Map2D.vue) et le composant
-[GeopfMap3D](packages/map3d/src/GeopfMap3D.vue) de la bibliothèque encapsulent
+[Map3D](packages/map3d/src/Map3D.vue) de la bibliothèque encapsulent
 l'élément cible de chaque carte et le cycle de vie de son contrôleur. Transmettez
 les options du contrôleur (`layers`, `controls`, `view` et les paramètres facultatifs
 du moteur) via la prop `options`. La 3D est chargée directement depuis la

@@ -1,17 +1,21 @@
 # Module cartographique reutilisable
 
-Ce dossier contient l'API ESM des cartes OpenLayers et iTowns. Il ne depend ni
-de Pinia, ni du routeur, ni de l'alias `@` de l'application. Vue 3 reste une
-dependance pour la reactivite. Chaque controleur possede ses propres ressources.
+Ce document decrit l'API ESM des cartes : l'etat partage et la carte OpenLayers
+dans `src/maps`, la carte iTowns dans la bibliotheque `@portail/map3d`. Cette
+API ne depend ni de Pinia, ni du routeur, ni de l'alias `@` de l'application.
+Vue 3 reste une dependance pour la reactivite. Chaque controleur possede ses
+propres ressources.
 
 ## Integration dans un autre projet
 
 Pour reutiliser la 3D dans une application Vue 3 + Vite, construire et installer
 la bibliotheque [`@portail/map3d`](packages/map3d/README.md). Sa documentation
 decrit les dependances, le plugin Vite, les styles, le composant et le paquet
-distribuable. L'index de l'application reexporte directement le controleur 3D.
+distribuable. Le controleur 3D `createMap3D` est exporte par la bibliotheque,
+notamment via `@portail/map3d/core` sans le composant Vue.
+
 Le projet experimental est proprietaire de `src/maps/state.js` et de
-`src/maps/loadMapConfig.js` ; la bibliotheque ne charge pas le catalogue et ne
+`src/composables/getConfig.js` ; la bibliotheque ne charge pas le catalogue et ne
 cree pas d'etat. La 2D reste propre a ce projet et conserve ses dependances
 OpenLayers.
 
@@ -34,16 +38,19 @@ options des moteurs avec un predicat `isActive` propre a chaque vue.
 Pour conserver ce chargement differe dans un projet hote, importer la fabrique
 2D separement et charger `@portail/map3d` et ses styles a la demande.
 L'application charge les styles depuis leur URL dans un element `link`, afin
-de pouvoir reessayer si le premier chargement echoue. L'index commun ci-dessous
-exporte statiquement les deux moteurs : ne pas l'utiliser comme point d'entree
-du chargement differe.
+de pouvoir reessayer si le premier chargement echoue. L'exemple ci-dessous
+importe statiquement les deux moteurs : ne pas le reprendre tel quel pour un
+chargement differe.
 
 Exemple de composant sans Pinia :
 
 ```js
 <script setup>
 import { onMounted, onBeforeUnmount, ref } from 'vue'
-import { createMapState, createMap2D, createMap3D, loadMapConfig } from './maps/index.js'
+import { createMap3D } from '@portail/map3d/core'
+import { createMapState } from './maps/state.js'
+import { createMap2D } from './maps/createMap2D.js'
+import { useGetConfig } from './composables/getConfig.js'
 
 const target2D = ref(null)
 const target3D = ref(null)
@@ -59,7 +66,7 @@ let disposed = false
 
 onMounted(async () => {
   try {
-    await loadMapConfig()
+    await useGetConfig()
     if (disposed) return
     await Promise.all([map2D.load(target2D.value), map3D.load(target3D.value)])
   } catch (cause) {
@@ -182,8 +189,9 @@ const map3D = createMap3D({
 })
 ```
 
-`loadMapConfig({ url, timeout })` charge le catalogue Geoplateforme avant les
-cartes. Sans options, il conserve le catalogue public et le delai de 20 secondes
+`useGetConfig({ url, timeout })`, dans `src/composables/getConfig.js`, charge
+le catalogue Geoplateforme avant les cartes. Sans options, il conserve le
+catalogue public et le delai de 20 secondes
 de cette application. Ses erreurs rejettent la promesse. Le catalogue est gere
 par la bibliotheque Geoplateforme et reste partage dans la page.
 

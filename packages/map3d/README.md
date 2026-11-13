@@ -49,6 +49,10 @@ OpenLayers est egalement presente, isoler separement ses styles.
 
 ## Integration dans le projet experimental
 
+Le dossier [`demo`](demo/README.md) contient un mini projet Vue 3 + Vite
+autonome, sans Pinia, montrant l'integration complete : etat fourni par
+l'hote, chargement du catalogue puis composant `Map3D`.
+
 Avant de charger le globe, l'application hote doit initialiser le catalogue
 Geoplateforme si elle utilise les couches WMTS ou le relief. Le code ci-dessous
 emploie les stores et le chargeur du projet experimental : adapter ces imports
@@ -139,12 +143,3 @@ La fabrique `createMap3D(options)` est egalement exportee depuis
 `@portail/map3d/core`. Elle renvoie `load(element)` et `dispose()` ;
 `useMap3D(options)` expose le meme controleur et le libere au demontage du
 composant Vue appelant.
-
-## Migration depuis 0.1
-
-Les exports `@portail/map3d/state`, `@portail/map3d/config`, `createMapState`
-et `loadMapConfig` ont ete retires du package : l'hote gere son propre etat et
-son catalogue. Le composant ne fournit plus les props `view`, `layers`,
-`controls` ni les `v-model` associes ; transmettre les objets reactifs via
-`options`. Le contrat et l'exemple complets de l'application sont aussi
-presentes dans `USAGE.md` a la racine du depot source.

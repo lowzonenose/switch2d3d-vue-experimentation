@@ -3,14 +3,14 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { geopfMap3D } from './vite.js'
+import { PluginMap3D } from './vite.js'
 
 const require = createRequire(import.meta.url)
 
 export default defineConfig({
   plugins: [
     vue(),
-    geopfMap3D(),
+    PluginMap3D(),
     {
       name: 'include-extension-source',
       generateBundle() {
