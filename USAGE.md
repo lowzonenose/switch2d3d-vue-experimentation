@@ -10,9 +10,9 @@ propres ressources.
 
 Pour reutiliser la 3D dans une application Vue 3 + Vite, construire et installer
 la bibliotheque [`@portail/map3d`](packages/map3d/README.md). Sa documentation
-decrit les dependances, le plugin Vite, les styles, le composant et le paquet
-distribuable. Le controleur 3D `createMap3D` est exporte par la bibliotheque,
-notamment via `@portail/map3d/core` sans le composant Vue.
+decrit les dependances, les styles, le composant et le paquet
+distribuable. Le controleur 3D `createMap3D` est exporte par la bibliotheque
+(`@portail/map3d`) a cote du composant Vue.
 
 Le projet experimental est proprietaire de `src/maps/state.js` et de
 `src/composables/getConfig.js` ; la bibliotheque ne charge pas le catalogue et ne
@@ -47,7 +47,7 @@ Exemple de composant sans Pinia :
 ```js
 <script setup>
 import { onMounted, onBeforeUnmount, ref } from 'vue'
-import { createMap3D } from '@portail/map3d/core'
+import { createMap3D } from '@portail/map3d'
 import { createMapState } from './maps/state.js'
 import { createMap2D } from './maps/createMap2D.js'
 import { useGetConfig } from './composables/getConfig.js'

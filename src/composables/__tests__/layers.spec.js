@@ -8,7 +8,7 @@ import { useControlsStore } from '@/stores/controls'
 import { useMapStore } from '@/stores/map'
 import { createMapState } from '@/maps/state.js'
 import { useLoad2D, useDispose2D } from '../load2D'
-import { createMap3D } from '@portail/map3d/core'
+import { createMap3D } from '@portail/map3d'
 
 const mocks = vi.hoisted(() => ({
     add2D: vi.fn(),

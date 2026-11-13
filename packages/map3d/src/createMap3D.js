@@ -1,3 +1,4 @@
+import './global.js'
 import { watch } from 'vue'
 import 'geopf-extensions-itowns/css/Classic.css'
 import { Coordinates } from 'itowns'

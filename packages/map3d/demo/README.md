@@ -4,17 +4,19 @@ Mini projet Vue 3 + Vite montrant l'integration du globe 3D dans une
 application hote, sans Pinia. La demo possede son etat cartographique
 (`src/mapState.js`) et initialise le catalogue Geoplateforme
 (`src/catalog.js`) avant d'afficher le composant `Map3D`, comme l'exige le
-contrat de la bibliotheque. Le plugin `PluginMap3D` de `@portail/map3d/vite`
-configure Vite.
+contrat de la bibliotheque. Aucun plugin Vite n'est necessaire.
 
 ## Lancer la demo
 
-La bibliotheque doit etre construite avant, ses exports pointant vers `dist/`.
-Apres `npm install` a la racine du depot, depuis `packages/map3d` :
+La demo installe la bibliotheque depuis l'archive `npm pack` produite dans ce
+dossier. Depuis `packages/map3d` (apres `npm install` dans `packages/map3d`) :
 
 ```sh
 npm run demo
 ```
+
+Ce script construit la bibliotheque, produit l'archive dans `demo/`, installe
+les dependances de la demo puis lance le serveur de developpement.
 
 La barre d'outils illustre la synchronisation bidirectionnelle : le point de
 vue affiche suit la navigation dans le globe, et l'ajout ou le retrait d'une

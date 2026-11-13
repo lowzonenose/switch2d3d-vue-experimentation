@@ -4,7 +4,7 @@ import { createPinia } from 'pinia'
 import TheExperimentation from '../TheExperimentation.vue'
 import Patience from '../Patience.vue'
 import { createMap2D } from '@/maps/createMap2D.js'
-import { createMap3D } from '@portail/map3d/core'
+import { createMap3D } from '@portail/map3d'
 import { ELEVATION_LAYER_ID } from '@/stores/layers'
 import { useGetConfig } from '@/composables/getConfig'
 
@@ -12,7 +12,7 @@ vi.mock('@/composables/getConfig', () => ({ useGetConfig: vi.fn() }))
 vi.mock('@/maps/createMap2D.js', () => ({
     createMap2D: vi.fn(() => ({ load: vi.fn(async () => null), dispose: vi.fn() })),
 }))
-vi.mock('@portail/map3d/core', () => ({
+vi.mock('../../../packages/map3d/src/createMap3D.js', () => ({
     createMap3D: vi.fn(() => ({ load: vi.fn(async () => null), dispose: vi.fn() })),
 }))
 

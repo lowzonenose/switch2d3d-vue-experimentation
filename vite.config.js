@@ -3,7 +3,6 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
-import { PluginMap3D } from '@portail/map3d/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -28,7 +27,6 @@ export default defineConfig({
   plugins: [
     vue(),
     vueDevTools(),
-    PluginMap3D(),
   ],
   resolve: {
     alias: [

@@ -66,6 +66,16 @@ composant 3D, un contrôleur par instance et leurs types. Le projet expérimenta
 fournit l'état partagé et la configuration du catalogue. La bibliothèque peut
 être construite et installée dans une autre application Vue 3 + Vite.
 
+La bibliothèque est entièrement indépendante (dépendances, construction et
+tests propres dans [packages/map3d](packages/map3d/README.md)). Le projet
+expérimental la consomme via l'archive produite par `npm pack`
+(`modules/portail-map3d-0.2.0.tgz`). Après une modification de la bibliothèque,
+reconstruire, réempaqueter et réinstaller l'archive :
+
+```sh
+npm run pack:map3d
+```
+
 Le [module cartographique](USAGE.md) fournit des contrôleurs 2D/3D
 propres à chaque instance, un état réactif configurable et le chargement du catalogue,
 sans dépendre de Pinia ni des alias de l'application. Sa documentation inclut un

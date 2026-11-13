@@ -40,3 +40,7 @@ __screenshots__/
 
 test-results/
 playwright-report/
+
+# Archives npm pack locales (la version consommee vit dans modules/)
+packages/map3d/*.tgz
+packages/map3d/demo/*.tgz

@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 import { fromLonLat } from 'ol/proj'
-import { createMap3D } from '@portail/map3d/core'
+import { createMap3D } from '@portail/map3d'
 import { useMapStore } from '@/stores/map'
 import { useLoad2D, useDispose2D } from '../load2D'
-import {
-    createMap2D, createMap3D as createMap3DFromIndex, createMapState, loadMapConfig,
-} from '../../maps/index.js'
+import { useGetConfig } from '../getConfig'
+import { createMap2D } from '../../maps/createMap2D.js'
+import { createMapState } from '../../maps/state.js'
 
 const configMocks = vi.hoisted(() => ({ call: vi.fn() }))
 
@@ -99,17 +99,13 @@ describe('shared map parameters', () => {
         vi.unstubAllGlobals()
     })
 
-    it('re-exports the 3D controller from the library', () => {
-        expect(createMap3DFromIndex).toBe(createMap3D)
-    })
-
     it('loads a configurable catalog and propagates configuration failures', async () => {
-        await loadMapConfig({ url: 'https://example.test/config.json', timeout: 5000 })
+        await useGetConfig({ url: 'https://example.test/config.json', timeout: 5000 })
         expect(configMocks.call).toHaveBeenCalledWith(expect.objectContaining({
             customConfigFile: 'https://example.test/config.json', timeOut: 5000,
         }))
         configMocks.call.mockImplementationOnce((options) => options.onFailure(new Error('Unavailable catalog')))
-        await expect(loadMapConfig()).rejects.toThrow('Unavailable catalog')
+        await expect(useGetConfig()).rejects.toThrow('Unavailable catalog')
     })
 
     it('supports independent map pairs without Pinia and disposes each pair separately', async () => {

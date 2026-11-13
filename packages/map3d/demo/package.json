@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@portail/map3d": "0.2.0",
+    "@portail/map3d": "file:portail-map3d-0.2.0.tgz",
     "geoportal-access-lib": "3.4.6",
     "itowns": "2.38.2",
     "proj4": "2.15.0",

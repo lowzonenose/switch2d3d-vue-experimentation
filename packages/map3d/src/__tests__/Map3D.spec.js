@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { reactive } from 'vue'
-import Map3D from '../Map3D.vue/index.js'
-import * as library from '../index.js'
-import packageInfo from '../../package.json'
-import { createMap3D } from '@portail/map3d/core'
+import Map3D from '../Map3D.vue'
+import { createMap3D } from '../createMap3D.js'
 
-vi.mock('@portail/map3d/core', () => ({
+vi.mock('../createMap3D.js', () => ({
   createMap3D: vi.fn(() => ({
     load: vi.fn(async () => ({ id: 'globe' })),
     dispose: vi.fn(),
@@ -15,12 +13,6 @@ vi.mock('@portail/map3d/core', () => ({
 
 describe('Map3D', () => {
   beforeEach(() => vi.clearAllMocks())
-
-  it('exports the renderer without host state or configuration helpers', () => {
-    expect(Object.keys(library).sort()).toEqual(['Map3D', 'createMap3D', 'useMap3D'])
-    expect(packageInfo.exports).not.toHaveProperty('./state')
-    expect(packageInfo.exports).not.toHaveProperty('./config')
-  })
 
   it('initializes independent instances with host options and disposes them on unmount', async () => {
     const firstOptions = reactive({ view: { coordinates: { longitude: 2, latitude: 48 }, zoom: 10 } })

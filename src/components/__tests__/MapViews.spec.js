@@ -1,14 +1,13 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import Map2D from '../Map2D.vue'
-import { Map3D } from '@portail/map3d'
 import { createMap2D } from '@/maps/createMap2D.js'
-import { createMap3D } from '@portail/map3d/core'
+import { Map3D, createMap3D } from '@portail/map3d'
 
 vi.mock('@/maps/createMap2D.js', () => ({
   createMap2D: vi.fn(() => ({ load: vi.fn(async () => null), dispose: vi.fn() })),
 }))
-vi.mock('@portail/map3d/core', () => ({
+vi.mock('../../../packages/map3d/src/createMap3D.js', () => ({
   createMap3D: vi.fn(() => ({ load: vi.fn(async () => null), dispose: vi.fn() })),
 }))
 

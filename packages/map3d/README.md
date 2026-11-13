@@ -8,13 +8,17 @@ conteneur doit avoir des dimensions.
 
 ## Construire et distribuer
 
-Depuis la racine du depot :
+La bibliotheque est autonome : elle embarque l'archive de l'extension
+`geopf-extensions-itowns` dans `modules/` et possede ses propres outils de
+construction et de test. Depuis `packages/map3d` :
 
 ```sh
 npm install
-npm run build:map3d
-npm pack --workspace @portail/map3d
+npm test
+npm pack
 ```
+
+`npm pack` construit la bibliotheque (`prepack`) puis produit l'archive.
 
 L'archive est installable dans une application Vue 3 + Vite ou publiable sur
 un registre prive. Le nom `@portail/map3d` est local au projet : verifier les
@@ -26,31 +30,27 @@ npm install ./portail-map3d-0.2.0.tgz vue@^3.5.0 itowns@2.38.2 three@0.137.5 pro
 
 L'extension `geopf-extensions-itowns` utilisee est incluse dans le build :
 il n'est pas necessaire de l'installer separement dans l'application hote.
+
 `geoportal-access-lib` reste une dependance partagee requise par l'extension,
-meme si le catalogue est initialise par l'hote. Le paquet contient
-`dist/THIRD-PARTY-LICENSES.md` et l'archive source exacte de l'extension.
-Celle-ci est sous licence AGPL-3.0 ; verifier les obligations de licence et la
-compatibilite du projet hote avant distribution ou deploiement.
+meme si le catalogue est initialise par l'hote.
 
-Dans `vite.config.js` du projet hote :
+Le paquet contient `dist/THIRD-PARTY-LICENSES.md` et l'archive source exacte
+de l'extension. Celle-ci est sous licence AGPL-3.0 ; verifier les obligations
+de licence et la compatibilite du projet hote avant distribution ou deploiement.
 
-```js
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import { Map3D } from '@portail/map3d/vite'
+Aucune configuration Vite specifique n'est requise dans le projet hote :
+`buffer` et `loglevel` sont inclus dans le build et la bibliotheque definit
+`global` (attendu par iTowns) avant le chargement d'iTowns. L'unique point
+d'entree est `@portail/map3d` ; les styles, deja limites a `.map3d`, sont
+fournis par `@portail/map3d/style.css`, a importer une fois.
 
-export default defineConfig({ plugins: [vue(), Map3D()] })
-```
-
-Le plugin configure `global`, resout `buffer` et `loglevel`, et evite les
-doublons des dependances partagees. Les styles de l'extension sont deja limites
-a `.map3d` ; importer `@portail/map3d/style.css` une fois. Si une carte
-OpenLayers est egalement presente, isoler separement ses styles.
+**Note :**
+> Si une carte OpenLayers est egalement presente, isoler separement ses styles.
 
 ## Integration dans le projet experimental
 
 Le dossier [`demo`](demo/README.md) contient un mini projet Vue 3 + Vite
-autonome, sans Pinia, montrant l'integration complete : etat fourni par
+autonome, montrant l'integration complete : etat fourni par
 l'hote, chargement du catalogue puis composant `Map3D`.
 
 Avant de charger le globe, l'application hote doit initialiser le catalogue
@@ -58,7 +58,7 @@ Geoplateforme si elle utilise les couches WMTS ou le relief. Le code ci-dessous
 emploie les stores et le chargeur du projet experimental : adapter ces imports
 si l'application hote utilise une autre organisation.
 
-```vue
+```js
 <script setup>
 import { defineAsyncComponent, onBeforeUnmount, onMounted, ref } from 'vue'
 import '@portail/map3d/style.css'
@@ -69,12 +69,14 @@ import { useMapStore } from '@/stores/map'
 
 const Map3D = defineAsyncComponent(() =>
   import('@portail/map3d').then(({ Map3D }) => Map3D))
+
 const options = {
   view: useMapStore(),
   layers: useLayersStore(),
   controls: useControlsStore(),
   elevationLayerId: ELEVATION_LAYER_ID,
 }
+
 const ready = ref(false)
 const error = ref(null)
 let unmounted = false
@@ -111,19 +113,24 @@ et gere leur nouvelle tentative en cas d'erreur reseau.
 
 ## Contrat de l'etat fourni par l'hote
 
-La prop obligatoire `options` contient des objets reactifs appartenant a l'hote :
+La props obligatoire `options` contient des objets reactifs appartenant a l'hote :
 
 - `view` expose `coordinates: { longitude, latitude }` en WGS84, `zoom` et
   `setView(coordinates, zoom)`.
+
 - `layers` expose `layers2D`, `layers3D`, `addLayer`, `removeLayer` et
-  eventuellement `updateLayer`. `layers3D` indique les couches actives.
-  `descriptors3D` peut fournir leurs descripteurs normalises
+  eventuellement `updateLayer`.
+  - `layers3D` indique les couches actives.
+  - `descriptors3D` peut fournir leurs descripteurs normalises
   `{ id, type, visible, opacity, order, source: { layer } }`, tries du bas vers
   le haut ; les descripteurs absents de `layers3D` ne sont pas affiches.
+
   Sans cette liste, les identifiants de `layers3D` sont interpretes comme des
   couches WMTS avec leurs proprietes par defaut.
+
 - `controls` expose la liste reactive `controls3D`. Les controles connus sont
   `LayerSwitcher`, `Scale` et `MousePosition`.
+  
 - `elevationLayerId` identifie une couche de relief dans une liste d'identifiants.
   Dans les descripteurs, le type `elevation` identifie aussi le relief. Pour
   desactiver celui-ci, l'hote ne doit pas l'inclure dans les couches 3D.
@@ -139,7 +146,7 @@ Pour charger manuellement, passer `:auto-load="false"` et appeler `load()` sur
 la reference du composant ; la promesse transmet l'erreur a l'appelant. Le globe
 est libere au demontage et `ready` n'est pas emis si le chargement est annule.
 
-La fabrique `createMap3D(options)` est egalement exportee depuis
-`@portail/map3d/core`. Elle renvoie `load(element)` et `dispose()` ;
+La fabrique `createMap3D(options)` est egalement exportee par `@portail/map3d`.
+Elle renvoie `load(element)` et `dispose()` ;
 `useMap3D(options)` expose le meme controleur et le libere au demontage du
 composant Vue appelant.

@@ -3,30 +3,30 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { PluginMap3D } from './vite.js'
 
 const require = createRequire(import.meta.url)
 
 export default defineConfig({
   plugins: [
     vue(),
-    PluginMap3D(),
     {
       name: 'include-extension-source',
       generateBundle() {
         this.emitFile({
           type: 'asset',
           fileName: 'geopf-extensions-itowns-1.0.0-beta.1.tgz',
-          source: readFileSync(new URL('../../modules/geopf-extensions-itowns-1.0.0-beta.1.tgz', import.meta.url)),
+          source: readFileSync(new URL('./modules/geopf-extensions-itowns-1.0.0-beta.1.tgz', import.meta.url)),
         })
       },
     },
   ],
+  define: { global: 'globalThis' },
   resolve: {
-    alias: [{
-      find: /^\.\/packages\/Styles$/,
-      replacement: require.resolve('geopf-extensions-itowns/css/Classic.css'),
-    }],
+    alias: [
+      { find: /^\.\/packages\/Styles$/, replacement: require.resolve('geopf-extensions-itowns/css/Classic.css') },
+      { find: /^buffer$/, replacement: require.resolve('buffer/') },
+      { find: /^loglevel$/, replacement: require.resolve('loglevel') },
+    ],
   },
   css: {
     postcss: {
@@ -49,8 +49,7 @@ export default defineConfig({
     license: { fileName: 'THIRD-PARTY-LICENSES.md' },
     lib: {
       entry: {
-        index: fileURLToPath(new URL('./src/index.js', import.meta.url)),
-        core: fileURLToPath(new URL('./src/createMap3D.js', import.meta.url)),
+        index: fileURLToPath(new URL('./index.js', import.meta.url)),
       },
       formats: ['es'],
       cssFileName: 'style',
@@ -59,6 +58,10 @@ export default defineConfig({
       external: (id) => ['vue', 'itowns', 'three', 'proj4', 'geoportal-access-lib'].some(
         (name) => id === name || id.startsWith(`${name}/`),
       ),
+      // Chunk séparé pour que `global` soit défini avant l'évaluation des imports externes (itowns).
+      output: {
+        manualChunks: (id) => (id.endsWith('/src/global.js') ? 'global' : undefined),
+      },
     },
   },
 })
