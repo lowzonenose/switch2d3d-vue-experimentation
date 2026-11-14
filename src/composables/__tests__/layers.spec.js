@@ -6,9 +6,21 @@ import { GeopfWMTS } from 'geopf-extensions-itowns'
 import { ELEVATION_LAYER_ID, useLayersStore } from '@/stores/layers'
 import { useControlsStore } from '@/stores/controls'
 import { useMapStore } from '@/stores/map'
-import { createMapState } from '@/maps/state.js'
-import { useLoad2D, useDispose2D } from '../load2D'
+import { createMapState } from '@/features/state.js'
+import { createMap2D } from '@/features/createMap2D.js'
 import { createMap3D } from '@portail/map3d'
+
+
+let controller2D = null
+function load2D(target, layers = useLayersStore(), controls = useControlsStore(), view = useMapStore()) {
+    controller2D?.dispose()
+    controller2D = createMap2D({ layers, controls, view })
+    return controller2D.load(target)
+}
+function dispose2D() {
+    controller2D?.dispose()
+    controller2D = null
+}
 
 const mocks = vi.hoisted(() => ({
     add2D: vi.fn(),
@@ -171,14 +183,14 @@ describe('store-driven map layers', () => {
     })
 
     afterEach(() => {
-        useDispose2D()
+        dispose2D()
         controller3D.dispose()
         vi.unstubAllGlobals()
     })
 
     it('loads shared layers in both views, with elevation only in 3D', async () => {
         const store = useLayersStore()
-        await useLoad2D(document.createElement('div'), store)
+        await load2D(document.createElement('div'), store)
         await controller3D.load(document.createElement('div'))
         expect(mocks.add2D.mock.calls.map(([layer]) => layer.layer)).toEqual(store.layers2D)
         expect(mocks.add3D.mock.calls.map(([layer]) => layer.layer)).toEqual(store.layers3D)
@@ -301,7 +313,7 @@ describe('store-driven map layers', () => {
 
     it('propagates additions once and stops observing after disposal', async () => {
         const store = useLayersStore()
-        await useLoad2D(document.createElement('div'), store)
+        await load2D(document.createElement('div'), store)
         await controller3D.load(document.createElement('div'))
         store.addLayer('TEST.WMTS')
         store.addLayer('TEST.WMTS')
@@ -310,7 +322,7 @@ describe('store-driven map layers', () => {
             expect(mocks.add3D).toHaveBeenCalledTimes(4)
         })
         expect(mocks.add2D).toHaveBeenCalledTimes(3)
-        useDispose2D()
+        dispose2D()
         controller3D.dispose()
         store.addLayer('OTHER.WMTS')
         await nextTick()
@@ -320,7 +332,7 @@ describe('store-driven map layers', () => {
 
     it('shares reactive controls without duplicates and cleans them up', async () => {
         const controls = useControlsStore()
-        await useLoad2D(document.createElement('div'), useLayersStore(), controls)
+        await load2D(document.createElement('div'), useLayersStore(), controls)
         await controller3D.load(document.createElement('div'))
         expect(mocks.addControl2D.mock.calls.map(([control]) => control.constructor.name)).toEqual(['LayerSwitcher'])
         expect(mocks.addControl3D.mock.calls.map(([control]) => control.constructor.name)).toEqual(['LayerSwitcher'])
@@ -330,7 +342,7 @@ describe('store-driven map layers', () => {
         await nextTick()
         expect(mocks.addControl2D.mock.calls.map(([control]) => control.constructor.name)).toEqual(['LayerSwitcher', 'Scale', 'MousePosition'])
         expect(mocks.addControl3D.mock.calls.map(([control]) => control.constructor.name)).toEqual(['LayerSwitcher', 'Scale', 'MousePosition'])
-        useDispose2D()
+        dispose2D()
         controller3D.dispose()
         expect(mocks.removeControl2D).toHaveBeenCalledTimes(3)
         expect(mocks.removeControl3D).toHaveBeenCalledTimes(3)
@@ -375,7 +387,7 @@ describe('store-driven map layers', () => {
 
     it('shares store removals and allows adding the same layer again', async () => {
         const store = useLayersStore()
-        const map = await useLoad2D(document.createElement('div'), store)
+        const map = await load2D(document.createElement('div'), store)
         const globe = await controller3D.load(document.createElement('div'))
         const id = store.layers2D[0]
         store.removeLayer(id)
@@ -389,7 +401,7 @@ describe('store-driven map layers', () => {
 
     it('shares additions and removals performed directly in 3D', async () => {
         const store = useLayersStore()
-        const map = await useLoad2D(document.createElement('div'), store)
+        const map = await load2D(document.createElement('div'), store)
         const globe = await controller3D.load(document.createElement('div'))
         const id = store.layers2D[0]
         globe.removeLayer(`${id}:WMTS`)
@@ -405,7 +417,7 @@ describe('store-driven map layers', () => {
 
     it('shares additions and removals performed directly in 2D', async () => {
         const store = useLayersStore()
-        const map = await useLoad2D(document.createElement('div'), store)
+        const map = await load2D(document.createElement('div'), store)
         const globe = await controller3D.load(document.createElement('div'))
         const layer = map.getLayers().item(0)
         map.removeLayer(layer)
@@ -418,7 +430,7 @@ describe('store-driven map layers', () => {
 
     it('does not resurrect a layer removed while its 3D addition is pending', async () => {
         const store = useLayersStore()
-        const map = await useLoad2D(document.createElement('div'), store)
+        const map = await load2D(document.createElement('div'), store)
         const globe = await controller3D.load(document.createElement('div'))
         let finishAdding
         mocks.add3D.mockImplementationOnce(() => new Promise((resolve) => { finishAdding = resolve }))
@@ -434,10 +446,10 @@ describe('store-driven map layers', () => {
 
     it('stops forwarding map layer events after disposal', async () => {
         const store = useLayersStore()
-        const map = await useLoad2D(document.createElement('div'), store)
+        const map = await load2D(document.createElement('div'), store)
         const globe = await controller3D.load(document.createElement('div'))
         const initialIds = [...store.layerIds]
-        useDispose2D()
+        dispose2D()
         controller3D.dispose()
         map.removeLayer(map.getLayers().item(0))
         globe.removeLayer(`${initialIds[0]}:WMTS`)
@@ -446,7 +458,7 @@ describe('store-driven map layers', () => {
 
     it('uses the latest descriptors on the first 3D load and reconciles changes without recreating layers', async () => {
         const store = useLayersStore()
-        const map = await useLoad2D(document.createElement('div'), store)
+        const map = await load2D(document.createElement('div'), store)
         const [first, second] = store.layers2D
         store.updateLayer(first, { visible: false, opacity: 0.25 })
         store.reorderLayers([second, first])
@@ -477,7 +489,7 @@ describe('store-driven map layers', () => {
 
     it('propagates visibility, opacity and order from either layer manager without feedback', async () => {
         const store = useLayersStore()
-        const map = await useLoad2D(document.createElement('div'), store)
+        const map = await load2D(document.createElement('div'), store)
         const globe = await controller3D.load(document.createElement('div'))
         const [first, second] = store.layers2D
         const layer2D = map.getLayers().getArray().find((layer) => layer.name === first)
@@ -504,7 +516,7 @@ describe('store-driven map layers', () => {
 
     it('captures properties of layers added directly in either engine', async () => {
         const store = useLayersStore()
-        const map = await useLoad2D(document.createElement('div'), store)
+        const map = await load2D(document.createElement('div'), store)
         const globe = await controller3D.load(document.createElement('div'))
         const layer2D = new LayerWMTS({ layer: 'FROM.2D' })
         layer2D.setVisible(false)
@@ -524,7 +536,7 @@ describe('store-driven map layers', () => {
 
     it('applies descriptor changes made during a pending 3D layer addition', async () => {
         const store = useLayersStore()
-        await useLoad2D(document.createElement('div'), store)
+        await load2D(document.createElement('div'), store)
         const globe = await controller3D.load(document.createElement('div'))
         let finishAdding
         mocks.add3D.mockImplementationOnce(() => new Promise((resolve) => { finishAdding = resolve }))
@@ -541,7 +553,7 @@ describe('store-driven map layers', () => {
 
     it('rebuilds changed WMTS sources without changing shared identifiers', async () => {
         const store = useLayersStore()
-        const map = await useLoad2D(document.createElement('div'), store)
+        const map = await load2D(document.createElement('div'), store)
         const globe = await controller3D.load(document.createElement('div'))
         const id = store.layers2D[0]
         store.updateLayer(id, { source: { layer: 'OTHER.WMTS' }, opacity: 0.45, visible: false })
@@ -577,14 +589,14 @@ describe('store-driven map layers', () => {
 
     it('detaches property listeners and cancels queued publications when disposed', async () => {
         const store = useLayersStore()
-        const map = await useLoad2D(document.createElement('div'), store)
+        const map = await load2D(document.createElement('div'), store)
         const globe = await controller3D.load(document.createElement('div'))
         const layer2D = map.getLayers().item(0)
         const layer3D = globe.layers.get(`${store.layers2D[0]}:WMTS`)
         const initial = JSON.parse(JSON.stringify(store.layerDescriptors))
         layer2D.setOpacity(0.1)
         layer3D.visible = false
-        useDispose2D()
+        dispose2D()
         controller3D.dispose()
         await nextTick()
         layer2D.setVisible(false)

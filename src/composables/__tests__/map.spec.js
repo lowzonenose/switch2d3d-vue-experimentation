@@ -4,10 +4,21 @@ import { nextTick } from 'vue'
 import { fromLonLat } from 'ol/proj'
 import { createMap3D } from '@portail/map3d'
 import { useMapStore } from '@/stores/map'
-import { useLoad2D, useDispose2D } from '../load2D'
 import { useGetConfig } from '../getConfig'
-import { createMap2D } from '../../maps/createMap2D.js'
-import { createMapState } from '../../maps/state.js'
+import { createMap2D } from '../../features/createMap2D.js'
+import { createMapState } from '../../features/state.js'
+
+
+let controller2D = null
+function load2D(target, layers, controls, view) {
+    controller2D?.dispose()
+    controller2D = createMap2D({ layers, controls, view })
+    return controller2D.load(target)
+}
+function dispose2D() {
+    controller2D?.dispose()
+    controller2D = null
+}
 
 const configMocks = vi.hoisted(() => ({ call: vi.fn() }))
 
@@ -94,7 +105,7 @@ describe('shared map parameters', () => {
         })
     })
     afterEach(() => {
-        useDispose2D()
+        dispose2D()
         controller3D?.dispose()
         vi.unstubAllGlobals()
     })
@@ -163,7 +174,7 @@ describe('shared map parameters', () => {
 
     it('initializes 2D from the store and propagates changes in both directions', async () => {
         const store = useMapStore()
-        const map = await useLoad2D(document.createElement('div'), { layers2D: [] }, { controls2D: [] }, store)
+        const map = await load2D(document.createElement('div'), { layers2D: [] }, { controls2D: [] }, store)
         const view = map.getView()
         expect(view.getCenter()).toEqual(fromLonLat([2.3465, 48.88]))
         expect(view.getZoom()).toBe(10)
@@ -182,7 +193,7 @@ describe('shared map parameters', () => {
         expect(store.coordinates.latitude).toBeCloseTo(43.3)
         expect(store.zoom).toBe(11)
 
-        useDispose2D()
+        dispose2D()
         store.zoom = 8
         await nextTick()
         expect(view.getZoom()).toBe(11)
@@ -193,7 +204,7 @@ describe('shared map parameters', () => {
 
     it('shares store changes and navigation between 2D and 3D without feedback', async () => {
         const store = useMapStore()
-        const map = await useLoad2D(document.createElement('div'), { layers2D: [] }, { controls2D: [] }, store)
+        const map = await load2D(document.createElement('div'), { layers2D: [] }, { controls2D: [] }, store)
         controller3D = createMap3D({ layers: { layers3D: [] }, controls: { controls3D: [] }, view: store })
         const globe = await controller3D.load(document.createElement('div'))
         expect(globe.getCenter().lon).toBe(store.coordinates.longitude)

@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { reactive } from 'vue'
 import Map3D from '../Map3D.vue'
-import { createMap3D } from '../createMap3D.js'
+import { createMap3D } from '../../features/createMap3D.js'
 
-vi.mock('../createMap3D.js', () => ({
+vi.mock('../../features/createMap3D.js', () => ({
   createMap3D: vi.fn(() => ({
     load: vi.fn(async () => ({ id: 'globe' })),
     dispose: vi.fn(),

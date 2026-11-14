@@ -1,14 +1,9 @@
 # switch2d3d-vue-experimentation
 
-Ce modèle vous aide à démarrer le développement avec Vue 3 / Vite / Itowns et OpenLayers.
+Ce projet avec Vue 3 / Vite / Itowns et OpenLayers permet d'experimenter le switch entre la 2D <-> 3D.
 
 Les spécifications pour la mise en place d'une experimentation d'une bascule 2D/3D :
 [Spécification — Intégration d'iTowns dans cartes.gouv.fr](Spécification--Intégration-iTowns-dans-cartes.gouv.fr.md)
-
-Un plan / prompt IA est disponible pour implementer des experimentations :
-
-- plan-implementation.prompt.md
-- TODO.md
 
 ## Installation du projet
 
@@ -84,7 +79,7 @@ exemple d'intégration dans un autre projet Vue.
 ### Composants cartographiques Vue
 
 [Map2D](src/components/Map2D.vue) et le composant
-[Map3D](packages/map3d/src/Map3D.vue) de la bibliothèque encapsulent
+[Map3D](packages/map3d/src/components/Map3D.vue) de la bibliothèque encapsulent
 l'élément cible de chaque carte et le cycle de vie de son contrôleur. Transmettez
 les options du contrôleur (`layers`, `controls`, `view` et les paramètres facultatifs
 du moteur) via la prop `options`. La 3D est chargée directement depuis la

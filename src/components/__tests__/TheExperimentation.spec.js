@@ -3,16 +3,16 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import TheExperimentation from '../TheExperimentation.vue'
 import Patience from '../Patience.vue'
-import { createMap2D } from '@/maps/createMap2D.js'
+import { createMap2D } from '@/features/createMap2D.js'
 import { createMap3D } from '@portail/map3d'
 import { ELEVATION_LAYER_ID } from '@/stores/layers'
 import { useGetConfig } from '@/composables/getConfig'
 
 vi.mock('@/composables/getConfig', () => ({ useGetConfig: vi.fn() }))
-vi.mock('@/maps/createMap2D.js', () => ({
+vi.mock('@/features/createMap2D.js', () => ({
     createMap2D: vi.fn(() => ({ load: vi.fn(async () => null), dispose: vi.fn() })),
 }))
-vi.mock('../../../packages/map3d/src/createMap3D.js', () => ({
+vi.mock('../../../packages/map3d/src/features/createMap3D.js', () => ({
     createMap3D: vi.fn(() => ({ load: vi.fn(async () => null), dispose: vi.fn() })),
 }))
 
@@ -197,7 +197,7 @@ describe('TheExperimentation', () => {
 
     it('keeps 2D available after a 3D loading error and allows retrying', async () => {
         const cause = new Error('WebGL unavailable')
-        const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+        const log = vi.spyOn(console, 'error').mockImplementation(() => { })
         createMap3D.mockImplementationOnce(() => ({
             load: vi.fn().mockRejectedValueOnce(cause).mockResolvedValue(null),
             dispose: vi.fn(),
@@ -230,7 +230,7 @@ describe('TheExperimentation', () => {
 
     it('reports configuration errors without initializing maps or enabling the toggle', async () => {
         const cause = new Error('Configuration unavailable')
-        const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+        const log = vi.spyOn(console, 'error').mockImplementation(() => { })
         useGetConfig.mockRejectedValueOnce(cause)
         const wrapper = mount(TheExperimentation, {
             global: { plugins: [createPinia()] },
@@ -249,7 +249,7 @@ describe('TheExperimentation', () => {
 
     it('reports 2D loading errors and does not mark the maps as ready', async () => {
         const cause = new Error('2D unavailable')
-        const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+        const log = vi.spyOn(console, 'error').mockImplementation(() => { })
         createMap2D.mockImplementationOnce(() => ({
             load: vi.fn().mockRejectedValue(cause),
             dispose: vi.fn(),

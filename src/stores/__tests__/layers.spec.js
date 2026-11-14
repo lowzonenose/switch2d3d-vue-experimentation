@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { ELEVATION_LAYER_ID, useLayersStore } from '../layers'
-import { createMapState } from '../../maps/state.js'
+import { createMapState } from '../../features/state.js'
 
 describe('layers store', () => {
     beforeEach(() => {

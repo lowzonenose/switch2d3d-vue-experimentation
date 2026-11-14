@@ -1,6 +1,6 @@
 <script setup>
 import { onBeforeUnmount, ref } from 'vue'
-import { createMap2D } from '../maps/createMap2D.js'
+import { createMap2D } from '../features/createMap2D.js'
 
 const props = defineProps({
   options: { type: Object, required: true },

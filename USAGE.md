@@ -1,7 +1,7 @@
 # Module cartographique reutilisable
 
 Ce document decrit l'API ESM des cartes : l'etat partage et la carte OpenLayers
-dans `src/maps`, la carte iTowns dans la bibliotheque `@portail/map3d`. Cette
+dans `src/features`, la carte iTowns dans la bibliotheque `@portail/map3d`. Cette
 API ne depend ni de Pinia, ni du routeur, ni de l'alias `@` de l'application.
 Vue 3 reste une dependance pour la reactivite. Chaque controleur possede ses
 propres ressources.
@@ -14,7 +14,7 @@ decrit les dependances, les styles, le composant et le paquet
 distribuable. Le controleur 3D `createMap3D` est exporte par la bibliotheque
 (`@portail/map3d`) a cote du composant Vue.
 
-Le projet experimental est proprietaire de `src/maps/state.js` et de
+Le projet experimental est proprietaire de `src/features/state.js` et de
 `src/composables/getConfig.js` ; la bibliotheque ne charge pas le catalogue et ne
 cree pas d'etat. La 2D reste propre a ce projet et conserve ses dependances
 OpenLayers.
@@ -211,7 +211,3 @@ modification de propriete ; un changement de source recree la couche concernee.
 Les ecouteurs de proprietes sont retires a la suppression et au nettoyage.
 Les controles sont ajoutes sans doublon ; leur retrait dynamique est synchronise
 en 3D mais pas encore en 2D.
-
-Les anciens composables `useLoad2D` / `useDispose2D` restent des adaptateurs de
-compatibilite, limites a une instance 2D. Pour la 3D et les integrations
-multi-cartes, utiliser les fabriques ou le composant de la bibliotheque.

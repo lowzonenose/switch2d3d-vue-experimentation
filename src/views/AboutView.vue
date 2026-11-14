@@ -1,6 +1,6 @@
 <template>
   <div class="about">
-    <h1>Mise en place d'une experimentation du switch 2D vers 3D</h1>
+    <h2>Mise en place d'une experimentation du switch 2D vers 3D</h2>
     <p>
       Cette page décrit l'expérimentation visant à évaluer la transition d'une interface 2D vers une
       interface 3D.

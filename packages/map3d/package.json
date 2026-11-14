@@ -1,6 +1,6 @@
 {
   "name": "@portail/map3d",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "files": [
     "dist",
@@ -17,7 +17,6 @@
   "scripts": {
     "build": "vite build --config vite.config.js",
     "test": "vitest run",
-    "prepack": "npm run build",
     "demo": "npm pack --pack-destination demo && npm --prefix demo install && npm --prefix demo run dev"
   },
   "dependencies": {

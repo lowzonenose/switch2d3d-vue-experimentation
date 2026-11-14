@@ -1,4 +1,4 @@
-import './global.js'
+import '../global.js'
 import { watch } from 'vue'
 import 'geopf-extensions-itowns/css/Classic.css'
 import { Coordinates } from 'itowns'
@@ -21,13 +21,58 @@ const defaultControlTypes = {
   MousePosition
 }
 
+/**
+ * Obtient les descripteurs de couches 3D à partir de l'objet layers.
+ *
+ * @param {Object<string, any>} layers - Un objet contenant soit des descripteurs de couches 3D, soit un tableau d'identifiants de couches 3D.
+ * @returns {Array} Une liste de descripteurs de couches 3D.
+ * @throws {Error} Si un identifiant de couche est invalide.
+ * @example
+ * const layers = {
+ *   layers3D: ['layer1', 'layer2']
+ * }
+ * const descriptors = getLayerDescriptors(layers)
+ */
 function getLayerDescriptors(layers) {
   return layers.descriptors3D ?? layers.layers3D.map((id, order) => {
     if (typeof id !== 'string' || !id.trim()) throw new Error('Identifiant de couche invalide')
-    return { id, type: 'WMTS', visible: true, opacity: 1, order, source: { layer: id } }
+    return {
+      id,
+      type: 'WMTS',
+      visible: true,
+      opacity: 1,
+      order,
+      source: { layer: id }
+    }
   })
 }
 
+/**
+ * Crée une carte 3D avec les options spécifiées.
+ * Les options layers, controls et view sont réactives
+ * et peuvent être mises à jour dynamiquement.
+ *
+ * @param {Object} options - Les options pour créer la carte 3D.
+ * @param {Object<string, any>} options.layers - Les couches à afficher sur la carte 3D.
+ * @param {Object<string, any>} options.controls - Les contrôles à ajouter à la carte 3D.
+ * @param {Object} options.view - La vue initiale de la carte 3D.
+ * @param {string} options.elevationLayerId - L'identifiant de la couche d'élévation.
+ * @param {Object} [options.controlTypes] - Les types de contrôles disponibles.
+ * @param {Object} [options.globeOptions] - Les options pour le globe 3D.
+ * @param {Function} [options.isActive] - Une fonction qui détermine si la carte est active.
+ * @param {Array} [options.attribution] - Les informations d'attribution pour la carte.
+ * @returns {Object} Un objet contenant la fonction load pour initialiser la carte 3D et la fonction dispose pour la nettoyer.
+ * @example
+ * const map3D = createMap3D({
+ *   layers: { layers3D: ['layer1', 'layer2'] },
+ *   controls: {},
+ *   view: { center: new Coordinates('EPSG:4326', 0, 0), zoom: 2 },
+ *   elevationLayerId: 'elevationLayer'
+ * })
+ * map3D.load(document.getElementById('map3d'))
+ * // Pour nettoyer la carte 3D
+ * map3D.dispose()
+ */
 export function createMap3D({
   layers,
   controls,
@@ -41,6 +86,12 @@ export function createMap3D({
   const registry = { ...defaultControlTypes, ...controlTypes }
   let disposeCurrent = () => { }
 
+  /**
+   * Charge la carte 3D dans l'élément cible.
+   * @param {HTMLElement} target
+   * @throws {Error} Si l'identifiant de couche est invalide.
+   * @returns {Promise<void>} Une promesse qui se résout lorsque la carte 3D est chargée.
+   */
   async function load(target) {
     dispose()
     let globe = null
@@ -54,6 +105,11 @@ export function createMap3D({
     const eventKeys = []
     const layerKeys = new Map()
 
+    /**
+     * Réinitialise et nettoie la session de la carte 3D.
+     * @throws {Error} Si la session de la carte 3D ne peut pas être réinitialisée.
+     * @returns {void} Ne retourne rien.
+     */
     function disposeSession() {
       if (!active) return
       active = false
@@ -78,9 +134,13 @@ export function createMap3D({
       globe.getTargetElement().replaceChildren()
     }
 
+    // Dispose de la session actuelle si elle existe avant de créer une nouvelle instance.
     disposeCurrent = disposeSession
+
     try {
+      // Ajout de la classe CSS pour le conteneur de la carte 3D.
       target.classList.add('map3d')
+      // Création de l'instance GlobeViewExtended avec les options spécifiées.
       globe = new GlobeViewExtended(target, {
         tilt: 45,
         heading: 0,
@@ -88,6 +148,8 @@ export function createMap3D({
         coord: new Coordinates('EPSG:4326', view.coordinates.longitude, view.coordinates.latitude, 0),
         zoom: view.zoom + ZOOM_OFFSET_3D,
       })
+
+      // Initialisation de la vue 3D et configuration de l'observateur de redimensionnement.
       const globeView = globe.getGlobeView()
       resizeObserver = new ResizeObserver(() => {
         if (active) globeView.resize()
@@ -102,10 +164,12 @@ export function createMap3D({
       initializationKey = null
       finishInitialization = null
 
+      // Fonction utilitaire pour obtenir les coordonnées actuelles du centre de la vue 3D.
       const getCoordinates = () => {
         const { lon, lat } = globe.getCenter()
         return { longitude: lon, latitude: lat }
       }
+      // Indique si une mise à jour de la vue est en cours d'application.
       let applyingView = false
       let updateRequested = false
       async function applyView() {
@@ -133,16 +197,23 @@ export function createMap3D({
           applyingView = false
         }
       }
+      // Surveillance des changements de la vue 2D pour les appliquer à la vue 3D.
       stopWatchingView = watch(
-        () => [view.coordinates.longitude, view.coordinates.latitude, view.zoom],
+        [
+          () => view.coordinates.longitude,
+          () => view.coordinates.latitude,
+          () => view.zoom
+        ],
         applyView,
         { immediate: true },
       )
+      // Fonction utilitaire pour mettre à jour la vue 2D en fonction de la vue 3D.
       const updateView = () => {
         if (!applyingView && active && isActive()) {
           view.setView(getCoordinates(), globe.getZoom() - ZOOM_OFFSET_3D)
         }
       }
+      // Surveillance des changements de la vue 3D pour les appliquer à la vue 2D.
       eventKeys.push(...[
         GlobeViewExtended.EVENTS.CENTER_CHANGED,
         GlobeViewExtended.EVENTS.RANGE_CHANGED,
@@ -152,6 +223,8 @@ export function createMap3D({
       const definitions = new Map()
       let applyingLayers = false
 
+      // Fonction pour observer les changements d'une couche 3D
+      // et les synchroniser avec la vue 3D.
       function observeLayer(id, layer) {
         loadedLayers.set(id, layer)
         if (!layer.isColorLayer) return
@@ -175,6 +248,7 @@ export function createMap3D({
           globe.addLayerListener(layer, `${property}-property-changed`, () => publish(property))))
       }
 
+      // Fonction pour oublier une couche 3D et nettoyer ses observateurs.
       function forgetLayer(id) {
         for (const key of layerKeys.get(id) ?? []) globe.forgetByKey(key)
         layerKeys.delete(id)
@@ -182,7 +256,9 @@ export function createMap3D({
         definitions.delete(id)
       }
 
+      // Synchronisation initiale des couches 3D avec l'état actuel de la vue 3D.
       eventKeys.push(
+        // Écoute des ajouts et suppressions de couches dans la vue 3D.
         globe.listen(GlobeViewExtended.EVENTS.LAYER_ADDED, ({ layerId }) => {
           const layer = globeView.getLayerById(layerId)
           if (!layer?.isColorLayer || !layer.source?.isWMTSSource) return
@@ -197,6 +273,7 @@ export function createMap3D({
             layers.addLayer(layers.updateLayer ? descriptor : id)
           }
         }),
+        // Écoute des modifications de propriétés des couches dans la vue 3D.
         globe.listen(GlobeViewExtended.EVENTS.LAYER_REMOVED, ({ layerId }) => {
           for (const [id, layer] of loadedLayers) {
             if (layer.id === layerId) {
@@ -207,6 +284,8 @@ export function createMap3D({
           }
         }),
       )
+      // Fonction de synchronisation des couches 3D avec l'état actuel
+      // des couches dans la vue 3D.
       async function syncLayers() {
         if (!active) return
         const descriptors = getLayerDescriptors(layers)
@@ -266,9 +345,14 @@ export function createMap3D({
           applyingLayers = false
         }
       }
+
+      // Surveillance des changements des couches 3D pour les synchroniser avec la vue 3D.
       let additions = Promise.resolve()
       stopWatchingLayers = watch(
-        () => [layers.layers3D, getLayerDescriptors(layers)],
+        () => [
+          layers.layers3D,
+          getLayerDescriptors(layers)
+        ],
         () => {
           additions = additions.then(syncLayers).catch((cause) => {
             if (active) console.error('Impossible de synchroniser les couches 3D :', cause)
@@ -280,16 +364,21 @@ export function createMap3D({
       await additions
       if (!active) return
 
+      // Surveillance des changements des contrôles 3D pour les synchroniser avec la vue 3D.
       const loadedControls = new Map()
       stopWatchingControls = watch(
         () => controls.controls3D,
         (ids) => {
+          // Suppression des contrôles 3D qui ne sont plus présents
+          // dans la liste des identifiants.
           for (const [id, widget] of loadedControls) {
             if (!ids.includes(id)) {
               globe.removeWidget(widget)
               loadedControls.delete(id)
             }
           }
+          // Ajout des nouveaux contrôles 3D présents
+          // dans la liste des identifiants.
           for (const id of ids) {
             if (loadedControls.has(id)) continue
             try {
