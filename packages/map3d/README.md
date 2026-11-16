@@ -150,3 +150,7 @@ La fabrique `createMap3D(options)` est egalement exportee par `@portail/map3d`.
 Elle renvoie `load(element)` et `dispose()` ;
 `useMap3D(options)` expose le meme controleur et le libere au demontage du
 composant Vue appelant.
+
+Pour integrer directement le store Pinia de cartes.gouv.fr-entree-carto, le
+paquet fournit `createEntreeCartoAdapter` et la prop `adapter` du composant.
+Voir [ENTREE-CARTO.md](./ENTREE-CARTO.md) pour le contrat adapte et un exemple.

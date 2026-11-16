@@ -52,6 +52,17 @@ describe('Map3D', () => {
     wrapper.unmount()
   })
 
+  it('uses the supplied adapter to create controller options', () => {
+    const options = { mapStore: {} }
+    const adaptedOptions = { view: {}, layers: {}, controls: {} }
+    const adapter = vi.fn(() => adaptedOptions)
+    const wrapper = mount(Map3D, { props: { options, adapter, autoLoad: false } })
+
+    expect(adapter).toHaveBeenCalledExactlyOnceWith(options)
+    expect(createMap3D).toHaveBeenCalledExactlyOnceWith(adaptedOptions)
+    wrapper.unmount()
+  })
+
   it('emits and rejects manual loading failures', async () => {
     const wrapper = mount(Map3D, { props: { options: {}, autoLoad: false } })
     const failure = new Error('globe indisponible')

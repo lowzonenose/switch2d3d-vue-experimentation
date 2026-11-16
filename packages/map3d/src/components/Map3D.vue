@@ -6,6 +6,7 @@ import { useMap3D } from '../composables/useMap3D.js'
 
 const props = defineProps({
   options: { type: Object, required: true },
+  adapter: { type: Function, default: null },
   autoLoad: { type: Boolean, default: true },
 })
 
@@ -16,7 +17,7 @@ const emit = defineEmits(['ready', 'error'])
 const target = ref(null)
 
 // Contrôleur de la carte 3D créé à partir des options fournies.
-const controller = useMap3D(props.options)
+const controller = useMap3D(props.adapter ? props.adapter(props.options) : props.options)
 
 // Indique si le composant a été démonté pour éviter d'émettre
 // des événements après le démontage.

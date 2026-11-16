@@ -48,8 +48,8 @@ Exemple de composant sans Pinia :
 <script setup>
 import { onMounted, onBeforeUnmount, ref } from 'vue'
 import { createMap3D } from '@portail/map3d'
-import { createMapState } from './maps/state.js'
-import { createMap2D } from './maps/createMap2D.js'
+import { createMapState } from './features/state.js'
+import { createMap2D } from './features/createMap2D.js'
 import { useGetConfig } from './composables/getConfig.js'
 
 const target2D = ref(null)
@@ -100,6 +100,8 @@ restent dans l'interface du projet hote. Ne pas masquer un conteneur avec
 
 ## API
 
+### Fabrique de refs
+
 `createMapState(options)` cree trois objets reactifs independants :
 
 - `view` : `coordinates` en longitude/latitude WGS84, `zoom` et
@@ -109,9 +111,8 @@ restent dans l'interface du projet hote. Ne pas masquer un conteneur avec
   `reorderLayers(idsOrdonnes)` et `removeLayer(id)`.
 - `controls` : `controlIds`, `controls2D`, `controls3D` et `addControl(id)`.
 
-Les options sont `coordinates`, `zoom`, `layerIds`, `layerDescriptors`, `controlIds` et
-`elevationLayerId`. Le relief est ajoute uniquement en 3D ; utiliser
-`elevationLayerId: null` pour le desactiver. Les listes d'entree sont copiees.
+Les options sont `coordinates`, `zoom`, `layerIds`, `layerDescriptors`, `controlIds` et `elevationLayerId`.
+Le relief est ajoute uniquement en 3D ; utiliser `elevationLayerId: null` pour le desactiver. Les listes d'entree sont copiees.
 
 ```js
 state.view.setView({ longitude: 4.8357, latitude: 45.764 }, 12)
@@ -160,9 +161,11 @@ par les adaptateurs, avec les proprietes par defaut. En 3D, l'application doit
 preciser `elevationLayerId` pour identifier le relief dans ces listes ; les
 descripteurs peuvent aussi le declarer avec `type: 'elevation'`.
 
+### Fabrique de cartes
+
 `createMap2D({ view, layers, controls, mapOptions, controlTypes, isActive })` et
-`createMap3D({ view, layers, controls, globeOptions, controlTypes, attribution,
-elevationLayerId, isActive })` renvoient un controleur avec :
+`createMap3D({ view, layers, controls, globeOptions, controlTypes, attribution,elevationLayerId, isActive })`
+renvoient un controleur avec :
 
 - `load(element)` : initialise la carte et renvoie une promesse de l'instance
   du moteur. Un nouvel appel nettoie la session precedente du meme controleur.
@@ -188,6 +191,8 @@ const map3D = createMap3D({
   attribution: [{ name: 'IGN', url: 'https://www.ign.fr/' }],
 })
 ```
+
+### Le catalogie de couches
 
 `useGetConfig({ url, timeout })`, dans `src/composables/getConfig.js`, charge
 le catalogue Geoplateforme avant les cartes. Sans options, il conserve le

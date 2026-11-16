@@ -46,6 +46,43 @@ export interface Map3DOptions {
   attribution?: { name: string; url: string }[]
   isActive?: () => boolean
 }
+export interface EntreeCartoMapStore {
+  lon: number
+  lat: number
+  zoom: number
+  x?: number
+  y?: number
+  getLayers(): string[]
+  getLayerProperty(id: string): {
+    position?: number
+    opacity?: number
+    visible?: boolean
+    grayscale?: boolean
+    style?: string
+  } | undefined
+  addLayer(id: string): void
+  removeLayer(id: string): void
+  updateLayerProperty(id: string, changes: {
+    position?: number
+    opacity?: number
+    visible?: boolean
+    grayscale?: boolean
+    style?: string
+  }): void
+  getControls(): string[]
+  getMap?(): {
+    getView?(): {
+      setCenter?(center: [number, number]): void
+      setZoom?(zoom: number): void
+    }
+  } | undefined
+}
+export interface EntreeCartoAdapterOptions extends Omit<Map3DOptions, 'view' | 'layers' | 'controls'> {
+  mapStore: EntreeCartoMapStore
+  controlMappings?: Record<string, string | null>
+}
+export type Map3DOptionsAdapter = (options: unknown) => Map3DOptions
+export declare function createEntreeCartoAdapter(options: EntreeCartoAdapterOptions): Map3DOptions
 export interface Map3DController {
   load(target: HTMLElement): Promise<unknown | undefined>
   dispose(): void
@@ -53,7 +90,8 @@ export interface Map3DController {
 export declare function createMap3D(options: Map3DOptions): Map3DController
 
 export interface Map3DProps {
-  options: Map3DOptions
+  options: Map3DOptions | EntreeCartoAdapterOptions | Record<string, unknown>
+  adapter?: Map3DOptionsAdapter | typeof createEntreeCartoAdapter
   autoLoad?: boolean
 }
 export interface Map3DExposed {
