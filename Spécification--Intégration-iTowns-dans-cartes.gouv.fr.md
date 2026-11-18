@@ -346,6 +346,7 @@ La vue 3D est montée dans un conteneur distinct, superposé à la vue 2D ; la v
 | P-10 | ~~**Cache HTTP partagé entre OpenLayers et iTowns.**~~ *Abandonnée* : un constructeur d’URL unique ne peut pas fonctionner, car les deux cartes n’utilisent pas la même projection ni le même TileMatrixSet ; les tuiles demandées sont différentes. Restent utiles, pour chaque moteur pris isolément : même mode CORS (crossOrigin anonymous) et en-têtes Cache-Control et ETag corrects côté serveur, sans Vary inutile. | En-têtes à demander à la Géoplateforme. | P-05, 11.2 |
 | P-11 | **Préchauffage des tuiles.** Le cache n’étant pas partagé entre les deux moteurs (P-05), le préchauffage doit cibler le tuilage propre à iTowns. Calculer les tuiles que la 3D va demander pour l’emprise courante et les télécharger avant ou pendant la transition. | Activer ou non ; coût en bande passante (tuiles inutiles) ; sens 2D vers 3D seulement ou dans les deux sens. | P-04, P-05 |
 | P-12 | **Service Worker avec API Cache.** *Ne permet pas de mutualiser les tuiles 2D et 3D (P-05) ; ne sert qu’à améliorer le cache propre à chaque moteur.* Normalisation des URL, stratégie « périmé pendant revalidation », durée de vie maîtrisée indépendamment des en-têtes du serveur. | Complexité (portée, mises à jour, jetons) acceptable ou non ; à n’envisager que si P-10 ne suffit pas. | P-10, FR-011 |
+| P-13 | **Tuiles d’élévation encodées en RGB(A).** Étudier le style `terrainrgb` du WMS de l’IGN pour réduire le volume de données transféré au chargement du relief 3D. | Confirmer la disponibilité du style, la compatibilité avec iTowns et le gain par rapport à `GeopfElevation`. | 11.5, P-09, NFR-002 |
 
 Les choix retenus seront reportés dans les ADR, les exigences non fonctionnelles et les exigences fonctionnelles correspondantes.
 
@@ -473,6 +474,14 @@ L’exemple recommande les composants superposés si la fluidité et la conserva
 **Ordre d’exécution proposé.** T-02 d’abord (peu coûteux), puis T-04 et T-05, puis T-07 pour chiffrer le gain. Les prototypes T-08 et T-09 ne sont à réaliser que si les résultats précédents le justifient. T-10 peut être mené en parallèle.
 
 **Choix à faire.** Seuils de décision (taux de recouvrement, gain minimal), appareils et réseaux de référence, personne en charge des tests.
+
+### 11.5 Poids des tuiles de relief : MNT encodé en RGB(A)
+
+**Source candidate.** Tester la couche WMS IGN `ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES` en projection géographique avec le style `terrainrgb`. Vérifier dans le `GetCapabilities`, puis sur une réponse `GetMap`, que le style est disponible dans le système de coordonnées requis et qu’il fournit une image sans perte dont les canaux encodent les altitudes.
+
+**Compatibilité iTowns.** Vérifier que la version utilisée peut charger ce WMS comme couche d’élévation et décoder ses altitudes. L’encodage `terrainrgb` de l’IGN ne doit pas être supposé identique au mode RGBA d’iTowns ni à celui de Mapbox. Les tickets ouverts [Feature RGBA-encoded elevation (iTowns/itowns#1463)](https://github.com/iTowns/itowns/issues/1463) et [Using Mapbox Elevation Data (iTowns/itowns#1542)](https://github.com/iTowns/itowns/issues/1542) donnent des pistes, mais ne confirment pas la prise en charge du flux IGN.
+
+**Critère de décision.** À emprise et résolution comparables, mesurer à froid les octets transférés et le temps jusqu’à l’affichage du relief, puis vérifier la précision des altitudes et le traitement des zones sans données. Ne retenir cette piste que si elle réduit le poids transféré sans ralentir l’affichage ni dégrader sensiblement le relief. Sinon, conserver `GeopfElevation`.
 
 ## 12. Prochaines étapes
 
