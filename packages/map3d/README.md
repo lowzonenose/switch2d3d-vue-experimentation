@@ -25,8 +25,11 @@ un registre prive. Le nom `@portail/map3d` est local au projet : verifier les
 droits sur ce nom avant toute publication.
 
 ```sh
-npm install ./portail-map3d-0.2.0.tgz vue@^3.5.0 itowns@2.38.2 three@0.137.5 proj4@2.15.0 geoportal-access-lib@3.4.6
+npm install ./portail-map3d-0.3.0.tgz ./itowns-2.46.0-local-full.tgz vue@^3.5.0 three@0.182.0 proj4@2.20.4 geoportal-access-lib@3.4.6
 ```
+
+Utiliser l'archive locale iTowns fournie dans `packages/map3d/modules`, avec les
+versions de Three.js et de Proj4 indiquées ci-dessus.
 
 L'extension `geopf-extensions-itowns` utilisee est incluse dans le build :
 il n'est pas necessaire de l'installer separement dans l'application hote.

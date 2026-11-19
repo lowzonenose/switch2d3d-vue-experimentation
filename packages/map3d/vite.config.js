@@ -14,8 +14,8 @@ export default defineConfig({
       generateBundle() {
         this.emitFile({
           type: 'asset',
-          fileName: 'geopf-extensions-itowns-1.0.0-beta.1.tgz',
-          source: readFileSync(new URL('./modules/geopf-extensions-itowns-1.0.0-beta.1.tgz', import.meta.url)),
+          fileName: 'geopf-extensions-itowns-1.0.0-beta.tgz',
+          source: readFileSync(new URL('./modules/geopf-extensions-itowns-1.0.0-beta.tgz', import.meta.url)),
         })
       },
     },
